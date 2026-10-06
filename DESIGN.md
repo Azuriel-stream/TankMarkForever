@@ -56,6 +56,8 @@ In combat nothing is rewritten (attributes are frozen); the skull and cycle snip
   missed it. Secure code can't read names, levels or marks, and can't read data written by addon code in combat
   (`GetPossiblyForbiddenHandleFrame` + `scrub`). Hence target-based override keys (mouseover is too unreliable in a fast fight). The pack key in combat uses tokens frozen
   at the pull (`set-unmarked`, so it can only add icons to unmarked mobs).
+- The next-free-icon key hands out icons that were unused at the pull. An icon freed in combat (e.g. cross after
+  it was promoted to skull) isn't reused until combat ends: secure code can't see marks, and guessing could move a live mark.
 - Blizzard's announced macro marking throttle doesn't apply on Forever (5+ marks per press, in-game).
 - No CC planning inside instances unless the learned entry names a CC class (creature type is secret there).
 
