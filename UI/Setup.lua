@@ -108,6 +108,7 @@ function Setup:Refresh()
     panel.widgets.enabled:SetChecked(TMF.isEnabled)
     panel.widgets.overlay:SetChecked(TMF:Get("overlay"))
     panel.widgets.shift:SetChecked(TMF:Get("shiftSelect"))
+    panel.widgets.near:SetChecked(TMF:Get("nearOnly") and true or false)
 end
 
 local function CreatePanel()
@@ -151,6 +152,16 @@ local function CreatePanel()
         TMF:Set("shiftSelect", checked)
     end)
     widgets.shift:SetPoint("LEFT", widgets.overlay, "RIGHT", 170, 0)
+    widgets.near = CreateCheckbox(content, L["OPT_NEAR"], L["OPT_NEAR_DESC"], function(checked)
+        TMF:Set("nearOnly", checked)
+        if checked then
+            for token, rec in pairs(TMF.Plates.records) do
+                rec.far, rec.hidden = TMF.Plates.IsFar(token), TMF.Plates.IsHidden(token)
+            end
+        end
+        TMF.Plates.Changed()
+    end)
+    widgets.near:SetPoint("TOPLEFT", widgets.overlay, "BOTTOMLEFT", 0, -2)
 
     local announce = CreateButton(f, L["BTN_ANNOUNCE"], 110, function() TMF.Team:Announce() end)
     announce:SetPoint("BOTTOMLEFT", 8, 4)

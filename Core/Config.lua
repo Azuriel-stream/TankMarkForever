@@ -4,7 +4,8 @@ TMF.DefaultConfig = {
     enabled = true,
     overlay = true,         -- planned icons above nameplates
     shiftSelect = true,     -- Shift-hover adds a mob to the pack selection (out of combat)
-    record = true,          -- inside dungeons/raids, new mob types become database entries automatically
+    nearOnly = true,        -- plan only mobs within ~30 yd (unless a Shift-hover selection is active)
+    record = true,         -- inside dungeons/raids, new mob types become database entries automatically
 
     -- The team setup (one active setup): row order = kill order. role: "KILL" (optionally owned by a tank),
     -- "CC" (needs a player in the group) or "OFF" (icon not used). player = full name ("First Last") or nil.

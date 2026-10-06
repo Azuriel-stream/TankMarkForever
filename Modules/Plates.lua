@@ -72,6 +72,7 @@ function Plates:Read(token, rec)
     local okT, ctype = pcall(UnitCreatureType, token)
     rec.unitType = okT and Utils.Safe(ctype, "string", nil) or nil
     Plates.Identify(rec)   -- sets ctype, tier, sig, sigBase
+    if not InCombatLockdown() then rec.far = Plates.IsFar(token) end
     local okA, canAttack = pcall(UnitCanAttack, "player", token)
     rec.hostile = okA and not Utils.IsSecret(canAttack) and canAttack == true
     rec.player = Utils.Flag(UnitIsPlayer, token)
@@ -177,6 +178,10 @@ function Plates:Exclusion(token, rec)
     if not rec.markable then return "SKIP_UNMARKABLE" end
     if next(Plates.selected) ~= nil and not Plates.selected[token] then return "SKIP_SELECTION" end
     if Utils.Flag(UnitAffectingCombat, token) then return "SKIP_COMBAT" end
+    if TMF:Get("nearOnly") and next(Plates.selected) == nil then
+        if rec.far then return "SKIP_FAR" end
+        if rec.hidden then return "SKIP_HIDDEN" end
+    end
     return nil
 end
 
@@ -258,8 +263,67 @@ frame:SetScript("OnEvent", function(_, event, unit)
     end
 end)
 
+-- =========================================================================
+-- Distance (kb/addons/TankMark.md, distance probe): exact distance and positions are blank for mobs, but range
+-- checks answer inside instances out of combat, in steps. The cap is the 30 yd range item (Large Rope Net); the
+-- ~28 yd interact check is the fallback. nil = unknown, never excluded. Only player -> mob is measurable, so a far
+-- pack is told apart from a near one, not one pack from another at the same distance (Shift-hover does that).
+-- =========================================================================
+local RANGE_ITEM = 835
+function Plates.IsFar(token)
+    local ok, inRange = pcall(C_Item.IsItemInRange, RANGE_ITEM, token)
+    if ok and not Utils.IsSecret(inRange) and type(inRange) == "boolean" then return not inRange end
+    ok, inRange = pcall(CheckInteractDistance, token, 4)
+    if ok and not Utils.IsSecret(inRange) and type(inRange) == "boolean" then return not inRange end
+    return nil
+end
+
+-- Line of sight (kb/addons/TankMark.md, LOS probe): there's no LOS API, but the engine fades the plate of a mob hidden
+-- behind terrain: plate alpha = distance alpha (nameplateMinAlpha..MaxAlpha) x nameplateOccludedAlphaMult. With the
+-- defaults (0.6..1 x 0.4) hidden plates read 0.24-0.40 and visible ones 0.60-1.00, so a cut between the bands tells
+-- them apart. nil = can't tell (CVars changed so the bands overlap, or the alpha isn't readable): never excluded.
+local function CVarNumber(name, fallback)
+    local ok, v = pcall(C_CVar.GetCVar, name)
+    v = ok and not Utils.IsSecret(v) and tonumber(v)
+    return v or fallback
+end
+
+function Plates.IsHidden(token)
+    local mult = CVarNumber("nameplateOccludedAlphaMult", 1)
+    local visibleMin = CVarNumber("nameplateMinAlpha", 0.6)
+    local hiddenMax = CVarNumber("nameplateMaxAlpha", 1) * mult
+    if hiddenMax >= visibleMin - 0.1 then return nil end
+    -- With a target, other plates may be dimmed further (nameplateNotSelectedAlpha, if the client has it).
+    local okT, isTarget = pcall(UnitIsUnit, token, "target")
+    if UnitExists("target") and not (okT and isTarget == true) then
+        local f = CVarNumber("nameplateNotSelectedAlpha", 1)
+        visibleMin, hiddenMax = visibleMin * f, hiddenMax * f
+    end
+    local ok, alpha = pcall(function() return C_NamePlate.GetNamePlateForUnit(token):GetAlpha() end)
+    if not ok or Utils.IsSecret(alpha) or type(alpha) ~= "number" then return nil end
+    return alpha < (hiddenMax + visibleMin) / 2
+end
+
+-- Out of combat, every 0.5 s: re-check range and line of sight so the plan follows you to the next pack. (Line of
+-- sight only here, not on plate add: a new plate may still be fading in.)
+local function CheckRanges()
+    if InCombatLockdown() or not TMF:Get("nearOnly") then return end
+    local changed = false
+    for token, rec in pairs(Plates.records) do
+        local far, hidden = Plates.IsFar(token), Plates.IsHidden(token)
+        if far ~= rec.far or hidden ~= rec.hidden then
+            rec.far, rec.hidden = far, hidden
+            changed = true
+        end
+    end
+    if changed then Changed() end
+end
+local rangeTicker
+
 function Plates:OnEnable()
     RefreshZone()
+    pcall(C_Item.RequestLoadItemDataByID, RANGE_ITEM)   -- the item answers range checks only once loaded
+    if not rangeTicker then rangeTicker = C_Timer.NewTicker(0.5, CheckRanges) end
     frame:RegisterEvent("NAME_PLATE_UNIT_ADDED")
     frame:RegisterEvent("NAME_PLATE_UNIT_REMOVED")
     frame:RegisterEvent("UNIT_HEALTH")
@@ -279,6 +343,10 @@ end
 
 function Plates:OnDisable()
     frame:UnregisterAllEvents()
+    if rangeTicker then
+        rangeTicker:Cancel()
+        rangeTicker = nil
+    end
     wipe(Plates.records)
     wipe(Plates.selected)
     Changed()

@@ -55,6 +55,12 @@ In combat nothing is rewritten (attributes are frozen); the skull and cycle snip
 
 ## Known limits
 - One key press per pull; nothing happens on its own.
+- Distance: only steps up to ~30 yd, player to mob (exact distance and positions are blank for mobs). "Only plan nearby
+  mobs" (default on) plans plates within ~30 yd (range item 835, fallback interact check 4), re-checked every 0.5 s out
+  of combat; a Shift-hover selection overrides it. It can't tell two packs at the same distance apart.
+- Line of sight: no API; the engine fades the plate of a mob hidden behind terrain (alpha x nameplateOccludedAlphaMult).
+  With the default CVars hidden plates read 0.24-0.40, visible 0.60-1.00, so the same checkbox leaves hidden mobs out
+  ("out of sight"). A mob you can see on a ledge below or above is in sight and still planned (height isn't readable).
 - Inside instances mobs are known only by signature: classification, power type and **model file** (level-free, so one
   entry covers a mob type at all levels). Different mobs sharing a body, classification and power share an entry; that's
   common in humanoid dungeons, where many NPCs use the same human model file (their looks are textures/gear). The model

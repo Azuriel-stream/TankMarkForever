@@ -28,6 +28,13 @@ function H.install(s)
     env.UnitCreatureType = function(u) local x = U(u); return x and x.ctype or nil end
     env.CanBeRaidTarget = function(u) return U(u) ~= nil end
     env.GetRealZoneText = function() return s.zone end
+    -- Range: units[u].far = beyond 30 yd (the range item and the 28 yd interact check say so).
+    env.C_Item = env.C_Item or {}
+    env.C_Item.IsItemInRange = function(_, u) local x = U(u); if x then return not x.far end end
+    env.C_Item.RequestLoadItemDataByID = function() end
+    env.CheckInteractDistance = function(u) local x = U(u); if x then return not x.far end end
+    -- Line of sight: Forever's default nameplate fade CVars (in-game LOS probe); units[u].hidden = behind terrain.
+    s.cvars.nameplateOccludedAlphaMult, s.cvars.nameplateMinAlpha, s.cvars.nameplateMaxAlpha = "0.400000", "0.600000", "1.000000"
     env.IsInInstance = function() return false, "none" end
     env.IsShiftKeyDown = function() return s.shift end
     env.UnitAffectingCombat = function(u) local x = U(u); return x and x.inCombat or false end
@@ -63,7 +70,8 @@ function H.install(s)
     env.C_NamePlate = env.C_NamePlate or {}
     env.C_NamePlate.GetNamePlateForUnit = function(u)
         if not U(u) then return nil end
-        return { UnitFrame = { RaidTargetFrame = { IsShown = function() return U(u).raidTarget ~= nil end } } }
+        return { GetAlpha = function() return U(u).hidden and 0.24 or 1 end,
+                 UnitFrame = { RaidTargetFrame = { IsShown = function() return U(u).raidTarget ~= nil end } } }
     end
 end
 
