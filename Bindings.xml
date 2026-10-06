@@ -1,0 +1,7 @@
+<Bindings>
+	<!-- Forever: marking only works through secure buttons on a key press (kb/gotchas.md#setraidtarget). -->
+	<Binding name="CLICK TMF_PackButton:LeftButton" header="TANKMARKFOREVER" category="ADDONS"/>
+	<Binding name="CLICK TMF_SkullButton:LeftButton" category="ADDONS"/>
+	<Binding name="CLICK TMF_CycleButton:LeftButton" category="ADDONS"/>
+	<Binding name="CLICK TMF_ClearButton:LeftButton" category="ADDONS"/>
+</Bindings>

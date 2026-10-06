@@ -1,0 +1,27 @@
+## Interface: 16001
+## Title: |cffFFD100TankMark|r Forever
+## Notes: Pre-pull raid marking for tanks: plans the pack, previews the icons, and marks it with one key.
+## Author: Azuriel
+## Version: 0.1.0
+## SavedVariables: TankMarkForeverDB
+
+# Locales
+Locales\Localization.lua
+Locales\enUS.lua
+
+# Core Framework
+Core\Init.lua
+Core\Config.lua
+Core\Utils.lua
+
+# Static Data and pure rules
+Data\Rules.lua
+
+# Functional Modules
+Modules\Plates.lua
+Modules\Planner.lua
+Modules\Marker.lua
+Modules\Overlay.lua
+
+# Commands
+UI\Commands.lua
