@@ -10,16 +10,26 @@ return function(sim, t)
         return by
     end
 
-    -- Rules only (instance: names secret): the mana user is killed first, then higher level first.
+    -- Rules only (instance: names secret): the mana user is killed first, then lower level first (dies faster).
     local melee14 = H.rec("nameplate1", { level = 14 })
     local caster13 = H.rec("nameplate2", { level = 13, power = "MANA" })
     local melee15 = H.rec("nameplate3", { level = 15 })
     local plan = P.Build({ melee14, caster13, melee15 }, nil, { ladder = LADDER })
     local by = icons(plan)
     t.eq(by.nameplate2, 8, "caster gets skull by rules")
-    t.eq(by.nameplate3, 7, "higher-level melee next")
-    t.eq(by.nameplate1, 6, "lower-level melee last")
-    t.eq(table.concat(plan.killOrder, ","), "nameplate2,nameplate3,nameplate1", "kill order follows priority")
+    t.eq(by.nameplate1, 7, "lower-level melee next")
+    t.eq(by.nameplate3, 6, "higher-level melee last")
+    t.eq(table.concat(plan.killOrder, ","), "nameplate2,nameplate1,nameplate3", "kill order follows priority")
+
+    -- Shift-hover order beats level and plate order among equal priority: the first hovered keeps skull.
+    melee15.pick, melee14.pick = 1, 2
+    by = icons(P.Build({ melee14, melee15 }, nil, { ladder = LADDER }))
+    t.eq(by.nameplate3, 8, "first hovered keeps skull (although higher level)")
+    t.eq(by.nameplate1, 7, "second hovered gets cross")
+    caster13.pick = 3
+    by = icons(P.Build({ melee14, caster13, melee15 }, nil, { ladder = LADDER }))
+    t.eq(by.nameplate2, 8, "higher priority still takes skull, whatever the hover order")
+    melee14.pick, melee15.pick, caster13.pick = nil, nil, nil
 
     -- Learned by signature beats rules; learned by name beats signature.
     local zone = { names = {}, sigs = { [melee14.sig] = { type = "KILL", prio = 1 } } }
@@ -41,8 +51,8 @@ return function(sim, t)
 
     -- Short ladder: overflow, then CC on a legal slot (open world: creature type known).
     local slots = { { mark = 5, class = "MAGE", alive = true } }
-    local a = H.rec("nameplate1", { level = 15, power = "MANA", ctype = "Humanoid" })
-    local b = H.rec("nameplate2", { level = 14, power = "MANA", ctype = "Humanoid" })
+    local a = H.rec("nameplate1", { level = 14, power = "MANA", ctype = "Humanoid" })
+    local b = H.rec("nameplate2", { level = 15, power = "MANA", ctype = "Humanoid" })
     local m = H.rec("nameplate3", { level = 14 })
     plan = P.Build({ a, b, m }, nil, { ladder = { 8 }, ccSlots = slots })
     by = icons(plan)

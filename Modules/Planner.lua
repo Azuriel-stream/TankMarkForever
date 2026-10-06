@@ -58,10 +58,13 @@ function Planner.Build(recs, zoneMobs, ctx)
                                 source = c.source })
     end
 
-    -- Kill-first order: priority, then higher level, then the order the plates appeared (deterministic).
+    -- Kill-first order: priority, then the Shift-hover order (so an equal mob hovered later never takes the
+    -- skull), else lower level (dies faster), then the order the plates appeared (deterministic).
     table.sort(pack, function(a, b)
         if a.prio ~= b.prio then return a.prio < b.prio end
-        if a.rec.level ~= b.rec.level then return a.rec.level > b.rec.level end
+        local pa, pb = tonumber(a.rec.pick), tonumber(b.rec.pick)
+        if pa and pb and pa ~= pb then return pa < pb end
+        if a.rec.level ~= b.rec.level then return a.rec.level < b.rec.level end
         return a.rec.seq < b.rec.seq
     end)
 

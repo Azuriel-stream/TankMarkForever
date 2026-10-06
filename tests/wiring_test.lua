@@ -30,6 +30,14 @@ return function(_, t)
     sim:Advance(1)
     t.eq(pack:GetAttribute("macrotext"), "/click TMF_Mark1", "only the selected mob is planned")
     t.eq(env.TMF_Mark1:GetAttribute("unit"), "nameplate3", "selected mob")
+    -- Hover a second trogg (lower level): the first hovered keeps skull, the new one gets cross.
+    sim.units.mouseover = sim.units.nameplate1
+    sim:Fire("UPDATE_MOUSEOVER_UNIT")
+    sim:Advance(1)
+    t.eq(env.TMF_Mark1:GetAttribute("unit"), "nameplate3", "first hovered trogg keeps skull")
+    t.eq(env.TMF_Mark1:GetAttribute("marker"), 8, "still skull")
+    t.eq(env.TMF_Mark2:GetAttribute("unit"), "nameplate1", "second hovered trogg next")
+    t.eq(env.TMF_Mark2:GetAttribute("marker"), 7, "gets cross")
     env.TankMarkForever.Plates:ClearSelection(true)
     sim.shift = false
     sim:Advance(1)

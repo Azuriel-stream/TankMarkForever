@@ -67,5 +67,5 @@ return function(_, t)
     local planned = {}
     for _, e in ipairs(env.TankMarkForever.Planner.plan.entries) do planned[e.rec.token] = e.icon end
     t.eq(planned.nameplate2, 5, "taught CC mob gets the CC icon")
-    t.eq(planned.nameplate3, 8, "kill ladder for the rest")
+    t.eq(planned.nameplate1, 8, "kill ladder for the rest (lower-level trogg first)")
 end

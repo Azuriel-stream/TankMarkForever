@@ -6,11 +6,12 @@ local Plates = TMF:RegisterModule("Plates")
 local Utils, Rules = TMF.Utils, TMF.Rules
 
 Plates.records = {}    -- [token] = record (see Read)
-Plates.selected = {}   -- [token] = true: Shift-hover pack selection
+Plates.selected = {}   -- [token] = hover order (1, 2, ...): Shift-hover pack selection
 Plates.zone = ""
 Plates.inInstance = false
 
 local seq = 0
+local pickSeq = 0
 local changePending = false
 
 -- Debounced: many plates arrive at once when you walk up to a pack.
@@ -190,6 +191,7 @@ function Plates:GetCandidates()
     local list, skipped = {}, {}
     for token, rec in pairs(Plates.records) do
         local reason = Plates:Exclusion(token, rec)
+        rec.pick = Plates.selected[token] -- hover order: the planner's tie-break among equal-priority mobs
         if reason then
             table.insert(skipped, { rec = rec, reason = reason })
         else
@@ -222,7 +224,8 @@ local function OnMouseover()
         local ok, same = pcall(UnitIsUnit, "mouseover", token)
         if ok and not Utils.IsSecret(same) and same == true then
             if rec.hostile and not Plates.selected[token] then
-                Plates.selected[token] = true
+                pickSeq = pickSeq + 1
+                Plates.selected[token] = pickSeq
                 TMF:Print(TMF.L["SELECT_ADDED"], Plates:CountSelected())
                 Changed()
             end
