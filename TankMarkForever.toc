@@ -15,6 +15,7 @@ Core\Config.lua
 Core\Utils.lua
 
 # Static Data and pure rules
+Data\ModelNames.lua
 Data\Rules.lua
 
 # Functional Modules

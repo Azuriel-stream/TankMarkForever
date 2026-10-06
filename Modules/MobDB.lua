@@ -16,18 +16,52 @@ local function NextIn(list, current)
     return list[1]
 end
 
--- "14|elite|MANA" -> level, tier, power
+-- "14|elite|MANA" or "14|elite|MANA|126239" -> level, tier, power, model file ID
+-- Signature forms (Rules.Signature): "elite|RAGE|126512" (model, level-free), "14|elite|RAGE" (no model) and the
+-- short-lived "14|elite|RAGE|126512" (model + level, migrated at load). Returns level (nil for model sigs), tier, power, model.
 function MobDB.ParseSig(sig)
-    local level, tier, power = string.match(sig or "", "^([^|]*)|([^|]*)|([^|]*)$")
-    return tonumber(level), tier, power
+    local parts = { strsplit("|", sig or "") }
+    if tonumber(parts[1]) then
+        return tonumber(parts[1]), parts[2], parts[3], tonumber(parts[4])
+    end
+    return nil, parts[1], parts[2], tonumber(parts[3])
 end
 
--- Readable label for a signature: "lvl 14 elite caster"
+function MobDB.ModelName(model)
+    if not model then return nil end
+    return (TMF.ModelNames and TMF.ModelNames[model]) or ("model " .. model)
+end
+
+-- Readable label for a signature: "elite worm melee", or "lvl 14 elite caster" without a model
 function MobDB.DescribeSig(sig)
-    local level, tier, power = MobDB.ParseSig(sig)
+    local level, tier, power, model = MobDB.ParseSig(sig)
     local role = L["ROLE_" .. Rules.RoleFromPower(power)]
+    local body = MobDB.ModelName(model)
+    if body then
+        return string.format("%s %s %s", tier or "?", body, role)
+    end
     local lvl = (not level or level == -1) and "??" or tostring(level)
     return string.format("lvl %s %s %s", lvl, tier or "?", role)
+end
+
+-- Levels a model entry has been seen at: "13-15", "14" or nil
+function MobDB.LevelText(entry)
+    local lv = entry and entry.levels
+    if not lv or not lv[1] then return nil end
+    if lv[1] == lv[2] then return tostring(lv[1]) end
+    return lv[1] .. "-" .. lv[2]
+end
+
+function MobDB.NoteLevel(entry, level)
+    if not entry or type(level) ~= "number" or level <= 0 then return end
+    local lv = entry.levels
+    if not lv then
+        entry.levels = { level, level }
+    elseif level < lv[1] then
+        lv[1] = level
+    elseif level > lv[2] then
+        lv[2] = level
+    end
 end
 
 -- Zones that have entries, sorted, plus `include` (the current zone) even if empty.
@@ -55,11 +89,16 @@ function MobDB:Entries(zone)
     for sig, entry in pairs(data.sigs) do
         table.insert(rows, { kind = "sig", key = sig, entry = entry, label = entry.note or MobDB.DescribeSig(sig) })
     end
+    -- Signatures by level, high first: model entries by the highest level seen.
+    local function SortLevel(row)
+        local level = MobDB.ParseSig(row.key)
+        return level or (row.entry.levels and row.entry.levels[2]) or 0
+    end
     table.sort(rows, function(a, b)
         if a.kind ~= b.kind then return a.kind == "name" end
         if a.kind == "name" then return a.key < b.key end
-        local la, lb = MobDB.ParseSig(a.key), MobDB.ParseSig(b.key)
-        if (la or 0) ~= (lb or 0) then return (la or 0) > (lb or 0) end
+        local la, lb = SortLevel(a), SortLevel(b)
+        if la ~= lb then return la > lb end
         return a.key < b.key
     end)
     return rows
@@ -75,7 +114,7 @@ end
 function MobDB:Learn(unit, entry)
     local ok, canAttack = pcall(UnitCanAttack, "player", unit)
     if not UnitExists(unit) or not ok or TMF.Utils.IsSecret(canAttack) or canAttack ~= true then return nil end
-    local rec = TMF.Plates:Read(unit, {})
+    local rec = TMF.Plates:RecordFor(unit) or TMF.Plates:Read(unit, {})
     local zone = TMF:GetZoneMobs(TMF.Plates.zone)
     if not entry then
         entry = { type = "KILL", prio = Rules.RoleTierPrio(Rules.RoleFromPower(rec.power), rec.tier) }
@@ -86,25 +125,64 @@ function MobDB:Learn(unit, entry)
         label = rec.name
     else
         zone.sigs[rec.sig] = entry
+        if rec.model then MobDB.NoteLevel(entry, rec.level) end
         label = MobDB.DescribeSig(rec.sig)
     end
     Changed()
     return entry, label, rec
 end
 
+-- One-time conversion of "level|tier|power|model" keys (identity step 1) to the level-free "tier|power|model".
+-- Entries that only differed by level merge: the first one (by key) is kept. Returns the merged labels.
+function MobDB:MigrateModelSigs()
+    local merged = {}
+    for _, data in pairs(TMF.db.mobs) do
+        local old = {}
+        for sig in pairs(data.sigs) do
+            local level, tier, power, model = MobDB.ParseSig(sig)
+            if level and model then table.insert(old, sig) end
+        end
+        table.sort(old)
+        for _, sig in ipairs(old) do
+            local level, tier, power, model = MobDB.ParseSig(sig)
+            local entry = data.sigs[sig]
+            data.sigs[sig] = nil
+            local key = Rules.Signature(level, tier, power, model)
+            if data.sigs[key] then
+                table.insert(merged, MobDB.DescribeSig(key))
+            else
+                data.sigs[key] = entry
+            end
+            MobDB.NoteLevel(data.sigs[key], level)
+        end
+    end
+    return merged
+end
+
+function MobDB:OnInitialize()
+    local merged = MobDB:MigrateModelSigs()
+    if #merged > 0 then
+        C_Timer.After(5, function() TMF:Print(L["MOBS_MERGED"], table.concat(merged, ", ")) end)
+    end
+end
+
 -- Forget the entry a unit would match. Returns its label or nil.
 function MobDB:ForgetUnit(unit)
     if not UnitExists(unit) then return nil end
-    local rec = TMF.Plates:Read(unit, {})
+    local rec = TMF.Plates:RecordFor(unit) or TMF.Plates:Read(unit, {})
     local zone = TMF:GetZoneMobs(TMF.Plates.zone)
     if rec.name and zone.names[rec.name] then
         zone.names[rec.name] = nil
         Changed()
         return rec.name
-    elseif not rec.name and zone.sigs[rec.sig] then
-        zone.sigs[rec.sig] = nil
-        Changed()
-        return MobDB.DescribeSig(rec.sig)
+    end
+    -- The model-specific entry first, then the model-less one it falls back to.
+    for _, sig in ipairs({ rec.sig, rec.sigBase }) do
+        if not rec.name and sig and zone.sigs[sig] then
+            zone.sigs[sig] = nil
+            Changed()
+            return MobDB.DescribeSig(sig)
+        end
     end
     return nil
 end
@@ -161,6 +239,6 @@ end
 function MobDB:Label(rec, zone)
     if rec.name then return rec.name end
     local data = TMF.db and TMF.db.mobs[zone or TMF.Plates.zone]
-    local entry = data and data.sigs[rec.sig]
+    local entry = data and (data.sigs[rec.sig] or (rec.sigBase and data.sigs[rec.sigBase]))
     return (entry and entry.note) or MobDB.DescribeSig(rec.sig)
 end

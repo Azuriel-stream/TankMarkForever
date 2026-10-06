@@ -130,7 +130,7 @@ function MobsUI:Refresh()
         if data then
             local e = data.entry
             local isSig = data.kind == "sig"
-            row.kind:SetText(isSig and L["MOBS_KIND_SIG"] or L["MOBS_KIND_NAME"])
+            row.kind:SetText(isSig and (TMF.MobDB.LevelText(e) or L["MOBS_KIND_SIG"]) or L["MOBS_KIND_NAME"])
             row.label:SetShown(not isSig)
             row.note:SetShown(isSig)
             if isSig then

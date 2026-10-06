@@ -15,7 +15,7 @@ function Planner.Knowledge(rec, zoneMobs)
     if zoneMobs then
         local e = rec.name and zoneMobs.names[rec.name]
         if e then return e, "name" end
-        e = zoneMobs.sigs[rec.sig]
+        e = zoneMobs.sigs[rec.sig] or (rec.sigBase and zoneMobs.sigs[rec.sigBase])
         if e then return e, "sig" end
     end
     return nil, "rules"
@@ -148,6 +148,13 @@ function Planner:Rebuild()
         ccSlots = TMF.Team:GetCCSlots(),
         reserved = ReservedIcons(),
     })
+    -- Remember the levels each learned model entry is seen at (shown in the mob database window).
+    if zoneMobs then
+        for _, rec in ipairs(recs) do
+            local entry = rec.model and zoneMobs.sigs[rec.sig]
+            if entry then TMF.MobDB.NoteLevel(entry, rec.level) end
+        end
+    end
     TMF:Fire("PLAN_CHANGED", Planner.plan)
 end
 

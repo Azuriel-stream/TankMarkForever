@@ -38,6 +38,27 @@ function H.install(s)
         for i = start, 8 do if not worn[i] then return i end end
         return 0
     end
+    -- Model scenes: an actor "loads" units[u].model at once and fires the loaded callback (s.modelsBlocked: as if
+    -- Blizzard closed the loophole, GetModelFileID returns 0).
+    local origCreateFrame = env.CreateFrame
+    env.CreateFrame = function(frameType, ...)
+        if frameType ~= "ModelScene" then return origCreateFrame(frameType, ...) end
+        local scene = { SetSize = function() end, SetPoint = function() end, SetAlpha = function() end }
+        function scene.CreateActor()
+            local actor = { model = 0 }
+            function actor.ClearModel(a) a.model = 0 end
+            function actor.SetOnModelLoadedCallback(a, cb) a.cb = cb end
+            function actor.SetModelByUnitCreatureDisplayID(a, unit)
+                local x = U(unit)
+                a.model = (x and not s.modelsBlocked and x.model) or 0
+                if a.cb then a.cb(a) end
+                return true
+            end
+            function actor.GetModelFileID(a) return a.model end
+            return actor
+        end
+        return scene
+    end
     -- Nameplate frames: RaidTargetFrame shown when the unit wears an icon.
     env.C_NamePlate = env.C_NamePlate or {}
     env.C_NamePlate.GetNamePlateForUnit = function(u)

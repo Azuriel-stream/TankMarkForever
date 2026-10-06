@@ -49,13 +49,79 @@ function Plates:Read(token, rec)
     rec.power = okP and Utils.Safe(powerToken, "string", nil) or nil
     local okT, ctype = pcall(UnitCreatureType, token)
     rec.ctype = okT and Utils.Safe(ctype, "string", nil) or nil
-    rec.sig = Rules.Signature(rec.level, rec.tier, rec.power)
+    rec.sigBase = Rules.Signature(rec.level, rec.tier, rec.power)
+    rec.sig = Rules.Signature(rec.level, rec.tier, rec.power, rec.model)
     local okA, canAttack = pcall(UnitCanAttack, "player", token)
     rec.hostile = okA and not Utils.IsSecret(canAttack) and canAttack == true
     rec.player = Utils.Flag(UnitIsPlayer, token)
     rec.markable = Utils.Flag(CanBeRaidTarget, token)
     rec.dead = Utils.Flag(UnitIsDead, token)
     return rec
+end
+
+-- =========================================================================
+-- Model identity. Forever: ModelSceneActor:SetModelByUnitCreatureDisplayID isn't guarded by
+-- RequiresDeclassifiedUnitIdentity (its siblings are), and GetModelFileID is readable inside instances, so the model
+-- file tells a worm from a trogg even where names are secret (kb/addons/TankMark.md, run 6). If Blizzard closes this,
+-- rec.model stays nil and signatures fall back to level|tier|power.
+-- =========================================================================
+local modelScene
+local actors = {}      -- [token] = actor (one per nameplate token, reused)
+local requestSeq = 0
+
+local function ActorFor(token)
+    if not modelScene then
+        modelScene = CreateFrame("ModelScene", "TMF_ModelScene", UIParent)
+        modelScene:SetSize(4, 4)
+        modelScene:SetPoint("BOTTOMLEFT", UIParent, "BOTTOMLEFT", 0, 0)
+        modelScene:SetAlpha(0.01)   -- effectively invisible; a hidden scene might not load models
+    end
+    if not actors[token] then
+        local ok, actor = pcall(modelScene.CreateActor, modelScene, nil, "ModelSceneActorTemplate")
+        if not ok or not actor then return nil end
+        actors[token] = actor
+    end
+    return actors[token]
+end
+
+local function ApplyModel(token, rec, fileID)
+    if Plates.records[token] ~= rec then return end            -- plate gone or reused meanwhile
+    if Utils.IsSecret(fileID) or type(fileID) ~= "number" or fileID <= 0 or rec.model == fileID then return end
+    rec.model = fileID
+    rec.sig = Rules.Signature(rec.level, rec.tier, rec.power, fileID)
+    Changed()
+end
+
+function Plates:LoadModel(token, rec)
+    local actor = ActorFor(token)
+    if not actor then return end
+    requestSeq = requestSeq + 1
+    local request = requestSeq
+    actor.tmfRequest = request
+    pcall(actor.ClearModel, actor)   -- never read a previous mob's model
+    pcall(actor.SetOnModelLoadedCallback, actor, function(a)
+        if a.tmfRequest == request then
+            local ok, fileID = pcall(a.GetModelFileID, a)
+            if ok then ApplyModel(token, rec, fileID) end
+        end
+    end)
+    if not pcall(actor.SetModelByUnitCreatureDisplayID, actor, token) then return end
+    C_Timer.After(1.5, function()   -- in case the loaded callback doesn't fire
+        if actor.tmfRequest == request and not rec.model then
+            local ok, fileID = pcall(actor.GetModelFileID, actor)
+            if ok then ApplyModel(token, rec, fileID) end
+        end
+    end)
+end
+
+-- The plate record of a unit (mouseover/target), so learning uses the loaded model. nil if it has no plate.
+function Plates:RecordFor(unit)
+    if Plates.records[unit] then return Plates.records[unit] end
+    for token, rec in pairs(Plates.records) do
+        local ok, same = pcall(UnitIsUnit, unit, token)
+        if ok and not Utils.IsSecret(same) and same == true then return rec end
+    end
+    return nil
 end
 
 -- Whether Blizzard's nameplate shows a raid icon. The icon itself is secret, IsShown isn't (run 2).
@@ -127,6 +193,7 @@ local frame = CreateFrame("Frame", "TMF_PlatesFrame")
 frame:SetScript("OnEvent", function(_, event, unit)
     if event == "NAME_PLATE_UNIT_ADDED" then
         Plates.records[unit] = Plates:Read(unit)
+        Plates:LoadModel(unit, Plates.records[unit])
         if InCombatLockdown() then TMF:Debug("plate added %s (%s)", unit, TMF.Planner.Describe(Plates.records[unit])) end
         Changed()
     elseif event == "NAME_PLATE_UNIT_REMOVED" then
@@ -165,7 +232,10 @@ function Plates:OnEnable()
     frame:RegisterEvent("PLAYER_ENTERING_WORLD")
     for i = 1, 40 do
         local token = "nameplate" .. i
-        if UnitExists(token) then Plates.records[token] = Plates:Read(token) end
+        if UnitExists(token) then
+            Plates.records[token] = Plates:Read(token)
+            Plates:LoadModel(token, Plates.records[token])
+        end
     end
     Changed()
 end

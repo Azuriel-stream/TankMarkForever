@@ -99,6 +99,12 @@ function Rules.RoleFromPower(powerToken)
 end
 
 -- Signature: the readable fingerprint used to learn mobs where names are secret.
-function Rules.Signature(level, tier, powerToken)
+-- With the creature's model file ID (readable inside instances, kb/addons/TankMark.md run 6): "tier|power|model",
+-- level-free, so one entry covers a mob type at every level (user decision). Without a model (the fallback if Blizzard
+-- closes the loophole, and entries learned before): "level|tier|power", where level is the only extra separator.
+function Rules.Signature(level, tier, powerToken, model)
+    if model then
+        return string.format("%s|%s|%s", tier or "?", powerToken or "?", tostring(model))
+    end
     return string.format("%s|%s|%s", tostring(level or "?"), tier or "?", powerToken or "?")
 end
