@@ -5,8 +5,15 @@ TMF.DefaultConfig = {
     overlay = true,         -- planned icons above nameplates
     shiftSelect = true,     -- Shift-hover adds a mob to the pack selection (out of combat)
 
-    -- Kill ladder until team profiles exist (milestone 3): kill order -> icon.
-    ladder = { 8, 7, 6, 5, 4, 3, 2, 1 },
+    -- The team setup (one active setup): row order = kill order. role: "KILL" (optionally owned by a tank),
+    -- "CC" (needs a player in the group) or "OFF" (icon not used). player = full name ("First Last") or nil.
+    setup = {
+        rows = {
+            { icon = 8, role = "KILL" }, { icon = 7, role = "KILL" }, { icon = 6, role = "KILL" },
+            { icon = 5, role = "KILL" }, { icon = 4, role = "KILL" }, { icon = 3, role = "KILL" },
+            { icon = 2, role = "KILL" }, { icon = 1, role = "KILL" },
+        },
+    },
 
     -- Learned mobs, per zone. Names only work where they're readable (the open world); inside instances the
     -- client hides them, so mobs are learned by signature (level, classification, power type). See DESIGN.md.

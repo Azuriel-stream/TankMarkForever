@@ -100,7 +100,7 @@ function Planner.Build(recs, zoneMobs, ctx)
     end
     for i = #ccCands, 1, -1 do
         local c = ccCands[i]
-        local mark = Rules.SelectCCSlot(c.authoredClass, c.rec.ctype, slots)
+        local mark = Rules.SelectCCSlot(c.authoredClass, c.rec.ctype, slots, c.authoredCC)
         if mark and not used[mark] then
             for _, s in ipairs(slots) do
                 if s.mark == mark then s.used = true end
@@ -144,8 +144,8 @@ function Planner:Rebuild()
     end
     local zoneMobs = TMF.db.mobs[Plates.zone]
     Planner.plan = Planner.Build(recs, zoneMobs, {
-        ladder = TMF:Get("ladder"),
-        ccSlots = {},          -- milestone 3: team profiles
+        ladder = TMF.Team:GetLadder(),
+        ccSlots = TMF.Team:GetCCSlots(),
         reserved = ReservedIcons(),
     })
     TMF:Fire("PLAN_CHANGED", Planner.plan)

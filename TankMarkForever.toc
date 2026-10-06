@@ -19,9 +19,11 @@ Data\Rules.lua
 
 # Functional Modules
 Modules\Plates.lua
+Modules\Team.lua
 Modules\Planner.lua
 Modules\Marker.lua
 Modules\Overlay.lua
 
-# Commands
+# UI and commands
+UI\Setup.lua
 UI\Commands.lua

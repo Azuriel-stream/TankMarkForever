@@ -28,10 +28,11 @@ local function Learn(arg1, arg2)
     if not rec then TMF:Print(L["LEARN_NO_UNIT"]) return end
     local entry
     local icon = tonumber(arg2)
+    local class = not icon and arg2 and TMF.Team.CC_SPELL[string.upper(arg2)] and string.upper(arg2) or nil
     if arg1 == "ignore" then
         entry = { type = "IGNORE" }
     elseif arg1 == "cc" then
-        entry = { type = "CC", prio = 9, icon = icon }
+        entry = { type = "CC", prio = 9, icon = icon, class = class }
     elseif tonumber(arg1) and tonumber(arg1) >= 1 and tonumber(arg1) <= 9 then
         entry = { type = "KILL", prio = tonumber(arg1), icon = icon }
     else
@@ -42,7 +43,8 @@ local function Learn(arg1, arg2)
     local store, key, label = LearnKey(rec, TMF:GetZoneMobs(TMF.Plates.zone))
     store[key] = entry
     local what = entry.type == "IGNORE" and "ignore"
-        or string.format("%s prio %d%s", entry.type, entry.prio, entry.icon and (" " .. TMF.Utils.IconText(entry.icon)) or "")
+        or string.format("%s prio %d%s%s", entry.type, entry.prio, entry.icon and (" " .. TMF.Utils.IconText(entry.icon)) or "",
+            entry.class and (" " .. entry.class) or "")
     TMF:Print(L["LEARN_SAVED"], label, what)
     TMF.Plates.Changed()
 end
@@ -88,7 +90,11 @@ SLASH_TANKMARKFOREVER1 = "/tmf"
 SLASH_TANKMARKFOREVER2 = "/tankmark"
 SlashCmdList.TANKMARKFOREVER = function(msg)
     local cmd, arg1, arg2 = strsplit(" ", string.lower(strtrim(msg or "")))
-    if cmd == "plan" then
+    if cmd == "" or cmd == "setup" then
+        TMF.Setup:Toggle()
+    elseif cmd == "announce" then
+        TMF.Team:Announce()
+    elseif cmd == "plan" then
         TMF.Planner:Report()
     elseif cmd == "select" and arg1 == "clear" then
         TMF.Plates:ClearSelection()

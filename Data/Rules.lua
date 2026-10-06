@@ -30,8 +30,9 @@ end
 
 -- Pick a CC mark from the CC slots ({ mark, class, race, alive, used, disabled }), or nil.
 -- Pass 1 prefers the authored class if legal; pass 2 takes the first legal slot. Unknown creature type
--- (always the case inside instances) degrades to authored-class-only.
-function Rules.SelectCCSlot(authoredClass, creatureType, slots)
+-- (always the case inside instances) degrades to authored-class-only; a mob the player taught as CC without a
+-- class (taughtCC) takes the first eligible slot: the player vouched that it can be CC'd.
+function Rules.SelectCCSlot(authoredClass, creatureType, slots, taughtCC)
     local function eligible(s)
         return s.alive and not s.used and not s.disabled and Rules.CCRaceEligible(s.class, s.race)
     end
@@ -46,10 +47,8 @@ function Rules.SelectCCSlot(authoredClass, creatureType, slots)
         end
         return nil
     end
-    if authoredClass then
-        for _, s in ipairs(slots) do
-            if s.class == authoredClass and eligible(s) then return s.mark end
-        end
+    for _, s in ipairs(slots) do
+        if eligible(s) and (s.class == authoredClass or (taughtCC and not authoredClass)) then return s.mark end
     end
     return nil
 end

@@ -122,7 +122,7 @@ function Marker:Apply(plan)
     local taken, cyc = {}, {}
     for icon in pairs(plan.reserved or {}) do taken[icon] = true end
     for _, e in ipairs(plan.entries) do taken[e.icon] = true end
-    for _, icon in ipairs(TMF:Get("ladder")) do
+    for _, icon in ipairs(TMF.Team:KillIcons()) do
         if not taken[icon] then table.insert(cyc, icon) end
     end
     for i = 1, MAX_MARKS do

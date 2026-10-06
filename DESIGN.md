@@ -42,9 +42,11 @@ In combat nothing is rewritten (attributes are frozen); the skull and cycle snip
 | `Core/Utils.lua` | secret-safe reads, icon helpers |
 | `Data/Rules.lua` | pure legacy rules: CC legality, role×tier priority, CC worthiness, power→role, signature |
 | `Modules/Plates.lua` | nameplate records, Shift-hover selection, deaths |
+| `Modules/Team.lua` | the team setup (kill order, tank owners, CC players), roster, announcement |
 | `Modules/Planner.lua` | pure `Build` (legacy `DecidePull` port) + shell (rebuild out of combat, reserved icons, report) |
 | `Modules/Marker.lua` | the secure buttons, snippets, attribute writer, pull lock |
 | `Modules/Overlay.lua` | planned-icon preview frames |
+| `UI/Setup.lua` | team setup window (`/tmf`): 8 rows icon/role/player, up/down, Announce |
 | `UI/Commands.lua` | `/tmf` |
 
 ## Known limits
@@ -61,8 +63,18 @@ In combat nothing is rewritten (attributes are frozen); the skull and cycle snip
 - Blizzard's announced macro marking throttle doesn't apply on Forever (5+ marks per press, in-game).
 - No CC planning inside instances unless the learned entry names a CC class (creature type is secret there).
 
+## Team setup (milestone 3)
+One active setup (user choice), edited in `/tmf`. Rows in kill order; each row = icon + role + optional player:
+- **Kill**: in the kill ladder in row order; an owning tank (optional) takes the icon out of the ladder while dead/offline.
+- **CC**: needs a player in the group; becomes a CC slot (class/race from the roster) for the planner's CC pass.
+- **Off**: icon not used.
+
+CC inside instances: creature type is secret, so only mobs taught as CC (`/tmf learn cc [class]`) get a CC slot.
+**Announce** (button or `/tmf announce`): `[TankMark] Kill order: {rt8} Tank > {rt7} > ...` then `[TankMark] CC: {rt5} Mage (Polymorph)` to
+party/raid; nothing is posted automatically. No HUD (user choice).
+
 ## Milestones
-1. **Marking loop** (this): plates, planner (rules + learning via `/tmf learn`), the four keys, overlay, tests.
+1. **Marking loop** (done, in-game confirmed): plates, planner (rules + learning via `/tmf learn`), the four keys, overlay, tests.
 2. Mob database UI: per-zone list of learned names and signatures, edit prio/icon/type, import of legacy data.
-3. Team profiles: kill ladder and CC slots from players (mark → tank/CC), HUD, plan announcement.
+3. **Team setup** (built, in-game test pending): kill order and CC from the setup window, announcement. No HUD.
 4. Sync: share the database and profiles over addon messages (work in dungeons, including trash combat).
