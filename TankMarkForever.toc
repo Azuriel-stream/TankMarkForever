@@ -16,6 +16,7 @@ Core\Utils.lua
 
 # Static Data and pure rules
 Data\ModelNames.lua
+Data\InstanceMobs.lua
 Data\Rules.lua
 
 # Functional Modules

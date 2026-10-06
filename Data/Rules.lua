@@ -4,10 +4,11 @@ local ADDON_NAME, TMF = ...
 local Rules = {}
 TMF.Rules = Rules
 
--- creatureType -> the classes whose CC is legal on it (race-free).
+-- creatureType -> the classes whose CC is legal on it. Forever has no player Hex (legacy Turtle WoW gave Troll
+-- Shamans one), so Shamans bring no CC.
 Rules.CCMap = {
-    Humanoid  = { "MAGE", "ROGUE", "WARLOCK", "SHAMAN" },  -- Sap/Polymorph/Fear/Hex
-    Beast     = { "MAGE", "DRUID", "HUNTER", "SHAMAN" },   -- Polymorph/Hibernate/Trap/Hex
+    Humanoid  = { "MAGE", "ROGUE", "WARLOCK" },            -- Polymorph/Sap/Fear
+    Beast     = { "MAGE", "DRUID", "HUNTER" },             -- Polymorph/Hibernate/Trap
     Elemental = { "WARLOCK" },                              -- Banish
     Demon     = { "WARLOCK" },                              -- Banish
     Undead    = { "PRIEST" },                               -- Shackle
@@ -23,18 +24,42 @@ function Rules.IsLegalCC(class, creatureType)
     return false
 end
 
--- Only non-Troll Shamans lack a CC (Hex).
-function Rules.CCRaceEligible(class, race)
-    return class ~= "SHAMAN" or race == "Troll"
+-- Whether a class brings any CC on Forever.
+function Rules.HasCC(class)
+    for _, list in pairs(Rules.CCMap) do
+        for _, c in ipairs(list) do
+            if c == class then return true end
+        end
+    end
+    return false
+end
+
+-- The CC mechanics a class uses, as the immunity letters of Data/InstanceMobs.lua (F fear, Z sleep, T freeze,
+-- K knockout, P polymorph, B banish, H shackle, S sapped). Sap is knockout or sapped depending on the client
+-- data, so either immunity blocks it.
+local CC_MECHANICS = { MAGE = "P", ROGUE = "KS", DRUID = "Z", HUNTER = "T", PRIEST = "H" }
+function Rules.CCImmune(class, creatureType, immune)
+    if not immune or immune == "" then return false end
+    local mechanics = CC_MECHANICS[class]
+    if class == "WARLOCK" then
+        mechanics = (creatureType == "Demon" or creatureType == "Elemental") and "B" or "F"
+    end
+    if not mechanics then return false end
+    for i = 1, #mechanics do
+        if immune:find(mechanics:sub(i, i), 1, true) then return true end
+    end
+    return false
 end
 
 -- Pick a CC mark from the CC slots ({ mark, class, race, alive, used, disabled }), or nil.
 -- Pass 1 prefers the authored class if legal; pass 2 takes the first legal slot. Unknown creature type
--- (always the case inside instances) degrades to authored-class-only; a mob the player taught as CC without a
--- class (taughtCC) takes the first eligible slot: the player vouched that it can be CC'd.
-function Rules.SelectCCSlot(authoredClass, creatureType, slots, taughtCC)
+-- (inside instances when the offline data can't tell) degrades to authored-class-only; a mob the player taught as CC
+-- without a class (taughtCC) takes the first eligible slot: the player vouched that it can be CC'd.
+-- immune: the mob's CC immunity letters (offline data), or nil.
+function Rules.SelectCCSlot(authoredClass, creatureType, slots, taughtCC, immune)
     local function eligible(s)
-        return s.alive and not s.used and not s.disabled and Rules.CCRaceEligible(s.class, s.race)
+        return s.alive and not s.used and not s.disabled
+            and not Rules.CCImmune(s.class, creatureType, immune)
     end
     if creatureType and Rules.CCMap[creatureType] then
         if authoredClass and Rules.IsLegalCC(authoredClass, creatureType) then
@@ -96,6 +121,42 @@ end
 function Rules.RoleFromPower(powerToken)
     if powerToken == "MANA" then return "CASTER" end
     return "MELEE"
+end
+
+-- Offline identity inside instances (Data/InstanceMobs.lua): the NPCs of one instance that use one model file.
+local TYPE_NAMES = { B = "Beast", D = "Dragonkin", M = "Demon", E = "Elemental", G = "Giant", U = "Undead",
+                     H = "Humanoid", C = "Critter", X = "Mechanical", N = "Not specified", T = "Totem" }
+local POWER_CODES = { RAGE = "R", MANA = "M" }
+
+-- variants: { "type;power;minLevel;maxLevel;immune;name", ... }. Keeps the variants with the plate's power type
+-- (any, if unknown) and, when some match, its level. Returns nil when nothing matches, else
+-- { ctype = creature type all of them share (nil if they disagree), immune = union of their immunities,
+--   names = { unique names } }. Disagreement leaves the type unknown, so a wrong guess never picks an illegal CC.
+function Rules.IdentifyFromData(variants, powerToken, level)
+    local code = powerToken and (POWER_CODES[powerToken] or "?")
+    local byPower, byLevel = {}, {}
+    for _, v in ipairs(variants) do
+        local t, p, lo, hi, immune, name = v:match("^(%u);(.);(%d+);(%d+);(%u*);(.*)$")
+        if t and (not code or p == code) then
+            local row = { t = t, immune = immune, name = name }
+            table.insert(byPower, row)
+            if type(level) == "number" and level >= tonumber(lo) and level <= tonumber(hi) then
+                table.insert(byLevel, row)
+            end
+        end
+    end
+    local rows = (#byLevel > 0) and byLevel or byPower
+    if #rows == 0 then return nil end
+    local t, immune, names, seenName, seenLetter = rows[1].t, "", {}, {}, {}
+    for _, row in ipairs(rows) do
+        if row.t ~= t then t = nil end
+        for i = 1, #row.immune do
+            local c = row.immune:sub(i, i)
+            if not seenLetter[c] then seenLetter[c] = true; immune = immune .. c end
+        end
+        if not seenName[row.name] then seenName[row.name] = true; table.insert(names, row.name) end
+    end
+    return { ctype = t and TYPE_NAMES[t], immune = immune, names = names }
 end
 
 -- Signature: the readable fingerprint used to learn mobs where names are secret.

@@ -60,6 +60,9 @@ local function Status()
     for _ in pairs(zoneMobs.sigs) do nSigs = nSigs + 1 end
     print(string.format(L["STATUS_ZONE"], TMF.Plates.zone, TMF.Plates.inInstance and "instance" or "open world",
         nNames, nSigs))
+    local id = TMF.Plates.instanceID
+    print(string.format(L["STATUS_INSTANCE"], tostring(id),
+        (id and TMF.InstanceMobs[id]) and L["STATUS_DATA_YES"] or L["STATUS_DATA_NO"]))
 end
 
 local function Debug()

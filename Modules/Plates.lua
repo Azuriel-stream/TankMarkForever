@@ -30,6 +30,22 @@ local function NpcID(guid)
     return tonumber(id)
 end
 
+-- Inside instances the creature type is secret; the offline data (Data/InstanceMobs.lua: instance map + model file ->
+-- the NPCs using it) restores it when every NPC matching the plate's power type and level agrees. Also gives their
+-- CC immunities and names. A readable UnitCreatureType (open world) always wins.
+function Plates.Identify(rec)
+    rec.ctype, rec.ctypeSource = rec.unitType, rec.unitType and "unit" or nil
+    rec.immune, rec.dataName = nil, nil
+    local mobs = Plates.instanceID and TMF.InstanceMobs and TMF.InstanceMobs[Plates.instanceID]
+    local variants = mobs and rec.model and mobs[rec.model]
+    if not variants then return end
+    local id = Rules.IdentifyFromData(variants, rec.power, rec.level)
+    if not id then return end
+    rec.immune = id.immune
+    if #id.names == 1 then rec.dataName = id.names[1] end
+    if not rec.ctype and id.ctype then rec.ctype, rec.ctypeSource = id.ctype, "data" end
+end
+
 -- Everything readable about a plate. In instances name/guid/creature type are secret (nil here);
 -- level, classification, power type and the boss flags stay readable (kb/addons/TankMark.md, run 4).
 function Plates:Read(token, rec)
@@ -48,7 +64,8 @@ function Plates:Read(token, rec)
     local okP, _, powerToken = pcall(UnitPowerType, token)
     rec.power = okP and Utils.Safe(powerToken, "string", nil) or nil
     local okT, ctype = pcall(UnitCreatureType, token)
-    rec.ctype = okT and Utils.Safe(ctype, "string", nil) or nil
+    rec.unitType = okT and Utils.Safe(ctype, "string", nil) or nil
+    Plates.Identify(rec)
     rec.sigBase = Rules.Signature(rec.level, rec.tier, rec.power)
     rec.sig = Rules.Signature(rec.level, rec.tier, rec.power, rec.model)
     local okA, canAttack = pcall(UnitCanAttack, "player", token)
@@ -89,6 +106,7 @@ local function ApplyModel(token, rec, fileID)
     if Utils.IsSecret(fileID) or type(fileID) ~= "number" or fileID <= 0 or rec.model == fileID then return end
     rec.model = fileID
     rec.sig = Rules.Signature(rec.level, rec.tier, rec.power, fileID)
+    Plates.Identify(rec)
     Changed()
 end
 
@@ -147,24 +165,39 @@ function Plates:ClearSelection(quiet)
     Changed()
 end
 
--- Mobs the planner may use: hostile, alive, markable NPCs not already fighting; only the selection if any.
+-- Why the planner leaves a plate out (a SKIP_* locale key), or nil if it's a candidate: hostile, alive, markable
+-- NPCs not already fighting; only the selection if any.
+function Plates:Exclusion(token, rec)
+    if rec.player then return "SKIP_PLAYER" end
+    if not rec.hostile then return "SKIP_FRIENDLY" end
+    if rec.dead then return "SKIP_DEAD" end
+    if not rec.markable then return "SKIP_UNMARKABLE" end
+    if next(Plates.selected) ~= nil and not Plates.selected[token] then return "SKIP_SELECTION" end
+    if Utils.Flag(UnitAffectingCombat, token) then return "SKIP_COMBAT" end
+    return nil
+end
+
+-- Candidates for the planner (by plate order), and { {rec, reason} } for the plates left out.
 function Plates:GetCandidates()
-    local useSelection = next(Plates.selected) ~= nil
-    local list = {}
+    local list, skipped = {}, {}
     for token, rec in pairs(Plates.records) do
-        if rec.hostile and rec.markable and not rec.player and not rec.dead
-            and (not useSelection or Plates.selected[token])
-            and not Utils.Flag(UnitAffectingCombat, token) then
+        local reason = Plates:Exclusion(token, rec)
+        if reason then
+            table.insert(skipped, { rec = rec, reason = reason })
+        else
             table.insert(list, rec)
         end
     end
     table.sort(list, function(a, b) return a.seq < b.seq end)
-    return list
+    return list, skipped
 end
 
 local function RefreshZone()
     Plates.zone = GetRealZoneText() or ""
     Plates.inInstance = IsInInstance() == true
+    -- The instance's map ID keys Data/InstanceMobs.lua (8th return; no secret annotation in the docs).
+    local ok, instanceID = pcall(function() return select(8, GetInstanceInfo()) end)
+    Plates.instanceID = ok and Utils.Safe(instanceID, "number", nil) or nil
 end
 
 local function RereadAll()

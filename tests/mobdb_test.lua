@@ -46,10 +46,10 @@ return function(_, t)
     t.eq(e2.type, "CC", "Kill -> CC")
     MobDB:CycleClass(e2)
     t.eq(e2.class, "MAGE", "any -> Mage")
-    for _ = 1, 6 do MobDB:CycleClass(e2) end
-    t.eq(e2.class, "SHAMAN", "... -> Shaman")
+    for _ = 1, 5 do MobDB:CycleClass(e2) end
+    t.eq(e2.class, "DRUID", "... -> Druid (no Shaman: no CC on Forever)")
     MobDB:CycleClass(e2)
-    t.eq(e2.class, nil, "Shaman -> any")
+    t.eq(e2.class, nil, "Druid -> any")
     MobDB:CycleType(e2)
     MobDB:CycleType(e2)
     t.eq(e2.type, "KILL", "Ignore -> Kill")

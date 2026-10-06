@@ -41,6 +41,7 @@ In combat nothing is rewritten (attributes are frozen); the skull and cycle snip
 | `Core/Config.lua` | defaults, `TankMarkForeverDB`, learned mobs per zone |
 | `Core/Utils.lua` | secret-safe reads, icon helpers |
 | `Data/ModelNames.lua` | generated: creature model file ID -> model name (tools/gen-model-names.ps1) |
+| `Data/InstanceMobs.lua` | generated: instance map + model file ID -> NPC variants (type, power, levels, CC immunities, name), from the 1.12 world DB + Forever DB2 (tools/gen-instance-mobs.ps1) |
 | `Data/Rules.lua` | pure legacy rules: CC legality, role×tier priority, CC worthiness, power→role, signature |
 | `Modules/Plates.lua` | nameplate records, Shift-hover selection, deaths |
 | `Modules/MobDB.lua` | learned mobs per zone (by name / by signature), learn/forget, edits, labels |
@@ -67,7 +68,10 @@ In combat nothing is rewritten (attributes are frozen); the skull and cycle snip
 - The next-free-icon key hands out icons that were unused at the pull. An icon freed in combat (e.g. cross after
   it was promoted to skull) isn't reused until combat ends: secure code can't see marks, and guessing could move a live mark.
 - Blizzard's announced macro marking throttle doesn't apply on Forever (5+ marks per press, in-game).
-- No CC planning inside instances unless the learned entry names a CC class (creature type is secret there).
+- Creature type is secret inside instances. The offline data restores it from (instance, model file), keeping the
+  NPCs that match the plate's power type and level, but only when they all agree. Player-race bodies shared by
+  humanoids and undead (BRD, Scholomance, Stratholme, Dire Maul, ZF, Sunken Temple) often stay unknown → no auto CC.
+  NPCs summoned by scripts aren't in the spawn data. Immunities come from the server emulator DB, not Blizzard.
 
 ## Team setup (milestone 3)
 One active setup (user choice), edited in `/tmf`. Rows in kill order; each row = icon + role + optional player:
@@ -75,7 +79,10 @@ One active setup (user choice), edited in `/tmf`. Rows in kill order; each row =
 - **CC**: needs a player in the group; becomes a CC slot (class/race from the roster) for the planner's CC pass.
 - **Off**: icon not used.
 
-CC inside instances: creature type is secret, so only mobs taught as CC (`/tmf learn cc [class]`) get a CC slot.
+CC inside instances: the creature type comes from the offline data (`Data/InstanceMobs.lua`), so leftover casters get a
+legal CC slot as in the open world, and slots whose CC the mob is immune to are skipped. Where the data can't tell
+the type, only mobs taught as CC (`/tmf learn cc [class]`) get a CC slot. `/tmf plan` shows each mob's type
+("Humanoid (data)", "type ?") and immunities.
 **Announce** (button or `/tmf announce`): `[TankMark] Kill order: {rt8} Tank > {rt7} > ...` then `[TankMark] CC: {rt5} Mage (Polymorph)` to
 party/raid; nothing is posted automatically. No HUD (user choice).
 

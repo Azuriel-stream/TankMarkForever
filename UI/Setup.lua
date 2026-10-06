@@ -94,6 +94,9 @@ function Setup:Refresh()
         if data.player then
             local m = TMF.Team:FindMember(data.player)
             text = m and ClassColored(m.short, m.class) or ("|cff888888" .. data.player .. "|r")
+            if m and data.role == "CC" and not TMF.Rules.HasCC(m.class) then
+                text = text .. " |cffff6060" .. L["SETUP_NO_CC"] .. "|r"
+            end
         else
             text = data.role == "CC" and ("|cffff6060" .. L["SETUP_NEEDS_PLAYER"] .. "|r") or L["SETUP_ANYONE"]
         end

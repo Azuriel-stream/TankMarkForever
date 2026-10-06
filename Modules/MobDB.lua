@@ -7,7 +7,7 @@ local MobDB = TMF:RegisterModule("MobDB")
 local L, Rules = TMF.L, TMF.Rules
 
 MobDB.TYPES = { "KILL", "CC", "IGNORE" }
-MobDB.CC_CLASSES = { "MAGE", "ROGUE", "WARLOCK", "HUNTER", "PRIEST", "DRUID", "SHAMAN" }
+MobDB.CC_CLASSES = { "MAGE", "ROGUE", "WARLOCK", "HUNTER", "PRIEST", "DRUID" }
 
 local function NextIn(list, current)
     for i, v in ipairs(list) do
@@ -214,7 +214,7 @@ function MobDB:ClearIcon(entry)
     Changed()
 end
 
--- any -> MAGE -> ... -> SHAMAN -> any
+-- any -> MAGE -> ... -> DRUID -> any
 function MobDB:CycleClass(entry)
     if not entry.class then entry.class = MobDB.CC_CLASSES[1]
     else entry.class = NextIn(MobDB.CC_CLASSES, entry.class) end
@@ -240,5 +240,5 @@ function MobDB:Label(rec, zone)
     if rec.name then return rec.name end
     local data = TMF.db and TMF.db.mobs[zone or TMF.Plates.zone]
     local entry = data and (data.sigs[rec.sig] or (rec.sigBase and data.sigs[rec.sigBase]))
-    return (entry and entry.note) or MobDB.DescribeSig(rec.sig)
+    return (entry and entry.note) or rec.dataName or MobDB.DescribeSig(rec.sig)
 end

@@ -8,7 +8,7 @@ local L, Utils = TMF.L, TMF.Utils
 -- Class -> the CC it brings (announcement text)
 Team.CC_SPELL = {
     MAGE = "CC_MAGE", ROGUE = "CC_ROGUE", WARLOCK = "CC_WARLOCK", HUNTER = "CC_HUNTER",
-    PRIEST = "CC_PRIEST", DRUID = "CC_DRUID", SHAMAN = "CC_SHAMAN",
+    PRIEST = "CC_PRIEST", DRUID = "CC_DRUID",
 }
 
 local function Separator()
@@ -90,7 +90,7 @@ function Team:GetCCSlots()
     for _, row in ipairs(Team:Rows()) do
         if row.role == "CC" and row.player then
             local m = Team:FindMember(row.player)
-            if m then
+            if m and TMF.Rules.HasCC(m.class) then   -- a Shaman's row stays empty (no CC on Forever)
                 table.insert(slots, { mark = row.icon, class = m.class, race = m.race, alive = m.alive })
             end
         end

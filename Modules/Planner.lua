@@ -100,7 +100,7 @@ function Planner.Build(recs, zoneMobs, ctx)
     end
     for i = #ccCands, 1, -1 do
         local c = ccCands[i]
-        local mark = Rules.SelectCCSlot(c.authoredClass, c.rec.ctype, slots, c.authoredCC)
+        local mark = Rules.SelectCCSlot(c.authoredClass, c.rec.ctype, slots, c.authoredCC, c.rec.immune)
         if mark and not used[mark] then
             for _, s in ipairs(slots) do
                 if s.mark == mark then s.used = true end
@@ -139,8 +139,13 @@ function Planner:Rebuild()
     if InCombatLockdown() then return end
     local Plates = TMF.Plates
     local recs = {}
-    for _, rec in ipairs(Plates:GetCandidates()) do
-        if not Plates:IsMarked(rec.token) then table.insert(recs, rec) end
+    local candidates, skipped = Plates:GetCandidates()
+    for _, rec in ipairs(candidates) do
+        if Plates:IsMarked(rec.token) then
+            table.insert(skipped, { rec = rec, reason = "SKIP_MARKED" })
+        else
+            table.insert(recs, rec)
+        end
     end
     local zoneMobs = TMF.db.mobs[Plates.zone]
     Planner.plan = Planner.Build(recs, zoneMobs, {
@@ -148,6 +153,7 @@ function Planner:Rebuild()
         ccSlots = TMF.Team:GetCCSlots(),
         reserved = ReservedIcons(),
     })
+    Planner.plan.skipped = skipped
     -- Remember the levels each learned model entry is seen at (shown in the mob database window).
     if zoneMobs then
         for _, rec in ipairs(recs) do
@@ -164,22 +170,39 @@ function Planner.Describe(entryOrRec)
     return TMF.MobDB:Label(rec)
 end
 
+-- "Humanoid", "Humanoid (data)" when it came from the offline instance data, "type ?"; plus CC immunities.
+function Planner.TypeText(rec)
+    local text = rec.ctype or "type ?"
+    if rec.ctypeSource == "data" then text = text .. " (data)" end
+    if rec.immune and rec.immune ~= "" then text = text .. ", immune " .. rec.immune end
+    return text
+end
+
 function Planner:Report()
-    local plan = Planner.plan
+    local plan, L = Planner.plan, TMF.L
     if #plan.entries == 0 then
-        TMF:Print(TMF.L["PLAN_EMPTY"])
-        return
+        TMF:Print(L["PLAN_EMPTY"])
+    else
+        TMF:Print(L["PLAN_HEADER"], #plan.entries)
     end
-    TMF:Print(TMF.L["PLAN_HEADER"], #plan.entries)
     local sorted = {}
     for _, e in ipairs(plan.entries) do table.insert(sorted, e) end
     table.sort(sorted, function(a, b) return a.icon > b.icon end)
     for _, e in ipairs(sorted) do
-        local detail = string.format("%s (%s, prio %d, %s)", Planner.Describe(e), e.reason, e.prio, e.source)
-        print(string.format(TMF.L["PLAN_LINE"], Utils.IconText(e.icon), detail))
+        local detail = string.format("%s (%s, prio %d, %s, %s)", Planner.Describe(e), e.reason, e.prio, e.source,
+            Planner.TypeText(e.rec))
+        print(string.format(L["PLAN_LINE"], Utils.IconText(e.icon), detail))
     end
-    if #plan.overflow > 0 then print(string.format(TMF.L["PLAN_OVERFLOW"], #plan.overflow)) end
-    if InCombatLockdown() then TMF:Print(TMF.L["PLAN_FROZEN"]) end
+    -- Every other plate and why it has no icon (players left out: noise).
+    for _, rec in ipairs(plan.overflow) do
+        print(string.format(L["PLAN_NO_ICON"], Planner.Describe(rec), L["SKIP_OVERFLOW"]))
+    end
+    for _, s in ipairs(plan.skipped or {}) do
+        if s.reason ~= "SKIP_PLAYER" then
+            print(string.format(L["PLAN_NO_ICON"], Planner.Describe(s.rec), L[s.reason]))
+        end
+    end
+    if InCombatLockdown() then TMF:Print(L["PLAN_FROZEN"]) end
 end
 
 function Planner:OnInitialize()
