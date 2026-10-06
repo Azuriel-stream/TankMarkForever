@@ -194,11 +194,42 @@ function MobDB:MigrateModelSigs()
     return merged
 end
 
+-- Recorder (legacy Flight Recorder): inside instances, every new mob type the plates show out of combat becomes a
+-- Kill entry with the rules' default priority, so the database fills up as you go and only needs tuning. Keyed like
+-- Learn (name if readable, else the model signature); waits for the model, so no level-based fallback entries.
+-- Nothing is overwritten. One chat line per new entry. Returns the number recorded.
+function MobDB:RecordVisible()
+    local Plates = TMF.Plates
+    if not TMF:Get("record") or not Plates.inInstance or InCombatLockdown() then return 0 end
+    local zone, added = nil, 0
+    for _, rec in pairs(Plates.records) do
+        if rec.hostile and not rec.player and not rec.dead and rec.markable and rec.ctype ~= "Critter"
+            and (rec.name or rec.model) then
+            zone = zone or TMF:GetZoneMobs(Plates.zone)
+            local list, key = zone.sigs, rec.sig
+            if rec.name then list, key = zone.names, rec.name end
+            if not list[key] then
+                local entry = { type = "KILL", prio = Rules.RoleTierPrio(Rules.RoleFromPower(rec.power), rec.tier) }
+                list[key] = entry
+                if not rec.name then MobDB.NoteLevel(entry, rec.level) end
+                added = added + 1
+                TMF:Print(L["RECORDED"], rec.name or MobDB.DefaultLabel(Plates.zone, key, entry), entry.prio)
+            end
+        end
+    end
+    if added > 0 then
+        MobDB.RememberInstance()
+        TMF:Fire("MOBDB_CHANGED")   -- the plan doesn't change: the entries carry the rules' priorities
+    end
+    return added
+end
+
 function MobDB:OnInitialize()
     local merged = MobDB:MigrateModelSigs()
     if #merged > 0 then
         C_Timer.After(5, function() TMF:Print(L["MOBS_MERGED"], table.concat(merged, ", ")) end)
     end
+    TMF:On("PLATES_CHANGED", function() MobDB:RecordVisible() end)
 end
 
 -- Forget the entry a unit would match. Returns its label or nil.

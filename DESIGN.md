@@ -44,7 +44,7 @@ In combat nothing is rewritten (attributes are frozen); the skull and cycle snip
 | `Data/InstanceMobs.lua` | generated: instance map + model file ID -> NPC variants (type, power, levels, CC immunities, name), from the 1.12 world DB + Forever DB2 (tools/gen-instance-mobs.ps1) |
 | `Data/Rules.lua` | pure legacy rules: CC legality, role×tier priority, CC worthiness, power→role, signature |
 | `Modules/Plates.lua` | nameplate records, Shift-hover selection, deaths |
-| `Modules/MobDB.lua` | learned mobs per zone (by name / by signature), learn/forget, edits, labels |
+| `Modules/MobDB.lua` | learned mobs per zone (by name / by signature), learn/forget, edits, labels, recorder (new mob types in dungeons become entries) |
 | `Modules/Team.lua` | the team setup (kill order, tank owners, CC players), roster, announcement |
 | `Modules/Planner.lua` | pure `Build` (legacy `DecidePull` port) + shell (rebuild out of combat, reserved icons, report) |
 | `Modules/Marker.lua` | the secure buttons, snippets, attribute writer, pull lock |

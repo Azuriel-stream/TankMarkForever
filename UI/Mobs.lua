@@ -121,6 +121,7 @@ end
 
 function MobsUI:Refresh()
     if not panel or not panel:IsShown() then return end
+    panel.record:SetChecked(TMF:Get("record") and true or false)
     local zones = TMF.MobDB:Zones(TMF.Plates.zone)
     local found = false
     for _, z in ipairs(zones) do if z == panel.zone then found = true end end
@@ -222,6 +223,17 @@ local function CreatePanel()
     end)
     learn:SetPoint("BOTTOMLEFT", 8, 4)
     Tooltip(learn, L["BTN_LEARN_TARGET"], L["BTN_LEARN_TARGET_DESC"])
+
+    f.record = CreateFrame("CheckButton", nil, f, "UICheckButtonTemplate")
+    f.record:SetSize(26, 26)
+    f.record:SetPoint("LEFT", learn, "RIGHT", 10, 0)
+    f.record.Text:SetFontObject("GameFontHighlight")
+    f.record.Text:SetText(L["OPT_RECORD"])
+    f.record:SetScript("OnClick", function(self)
+        TMF:Set("record", self:GetChecked())
+        if self:GetChecked() then TMF.MobDB:RecordVisible() end
+    end)
+    Tooltip(f.record, L["OPT_RECORD"], L["OPT_RECORD_DESC"])
 
     f.nextPage = CreateButton(f, L["BTN_NEXT"], 28, function() panel.page = panel.page + 1 MobsUI:Refresh() end)
     f.nextPage:SetPoint("BOTTOMRIGHT", -8, 4)
