@@ -78,6 +78,40 @@ function MobDB:Zones(include)
     return list
 end
 
+-- The instance map of a zone (keys Data/InstanceMobs.lua): remembered while you're there, so the window can name
+-- entries of other zones too.
+function MobDB.InstanceOf(zone)
+    local data = TMF.db.mobs[zone]
+    if data and data.instanceID then return data.instanceID end
+    if zone == TMF.Plates.zone then return TMF.Plates.instanceID end
+    return nil
+end
+
+function MobDB.RememberInstance()
+    local id, data = TMF.Plates.instanceID, TMF.db and TMF.db.mobs[TMF.Plates.zone]
+    if data and id and TMF.InstanceMobs[id] then data.instanceID = id end
+end
+
+-- NPC names the offline data gives for a model signature entry (power type, boss or not, levels seen), or nil.
+function MobDB.DataNames(zone, sig, entry)
+    local level, tier, power, model = MobDB.ParseSig(sig)
+    local id = MobDB.InstanceOf(zone)
+    local variants = id and model and TMF.InstanceMobs[id] and TMF.InstanceMobs[id][model]
+    if not variants then return nil end
+    local lo, hi = level, level
+    if entry and entry.levels then lo, hi = entry.levels[1], entry.levels[2] end
+    local names = Rules.NamesFromData(variants, power, lo, hi, tier == "boss")
+    return #names > 0 and names or nil
+end
+
+-- Default label of a signature entry: "Ragefire Trogg", "Searing Blade Cultist +2", else "elite troglodyte melee".
+function MobDB.DefaultLabel(zone, sig, entry)
+    local names = MobDB.DataNames(zone, sig, entry)
+    if not names then return MobDB.DescribeSig(sig) end
+    if #names == 1 then return names[1] end
+    return string.format("%s +%d", names[1], #names - 1)
+end
+
 -- Entries of a zone as rows { kind = "name"|"sig", key, entry, label }: names A-Z, then signatures by level (high first).
 function MobDB:Entries(zone)
     local data = TMF.db.mobs[zone]
@@ -87,7 +121,7 @@ function MobDB:Entries(zone)
         table.insert(rows, { kind = "name", key = name, entry = entry, label = name })
     end
     for sig, entry in pairs(data.sigs) do
-        table.insert(rows, { kind = "sig", key = sig, entry = entry, label = entry.note or MobDB.DescribeSig(sig) })
+        table.insert(rows, { kind = "sig", key = sig, entry = entry, label = entry.note or MobDB.DefaultLabel(zone, sig, entry) })
     end
     -- Signatures by level, high first: model entries by the highest level seen.
     local function SortLevel(row)
@@ -116,6 +150,7 @@ function MobDB:Learn(unit, entry)
     if not UnitExists(unit) or not ok or TMF.Utils.IsSecret(canAttack) or canAttack ~= true then return nil end
     local rec = TMF.Plates:RecordFor(unit) or TMF.Plates:Read(unit, {})
     local zone = TMF:GetZoneMobs(TMF.Plates.zone)
+    MobDB.RememberInstance()
     if not entry then
         entry = { type = "KILL", prio = Rules.RoleTierPrio(Rules.RoleFromPower(rec.power), rec.tier) }
     end
@@ -126,7 +161,7 @@ function MobDB:Learn(unit, entry)
     else
         zone.sigs[rec.sig] = entry
         if rec.model then MobDB.NoteLevel(entry, rec.level) end
-        label = MobDB.DescribeSig(rec.sig)
+        label = MobDB.DefaultLabel(TMF.Plates.zone, rec.sig, entry)
     end
     Changed()
     return entry, label, rec

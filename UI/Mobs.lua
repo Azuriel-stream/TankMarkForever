@@ -52,7 +52,7 @@ local function CreateRow(parent, i)
     row.note:SetMaxLetters(40)
     row.note:SetScript("OnEnterPressed", function(self)
         local text = self:GetText()
-        if text == TMF.MobDB.DescribeSig(D(i).key) then text = "" end   -- unchanged default: no label
+        if text == TMF.MobDB.DefaultLabel(panel.zone, D(i).key, D(i).entry) then text = "" end   -- unchanged default: no label
         TMF.MobDB:SetNote(D(i).entry, text)
         self:ClearFocus()
     end)
@@ -60,7 +60,21 @@ local function CreateRow(parent, i)
         self:ClearFocus()
         MobsUI:Refresh()
     end)
-    Tooltip(row.note, L["MOBS_KIND_SIG"], L["MOBS_NOTE_DESC"])
+    -- Tooltip: every NPC the offline data gives for this entry, the body, then how to edit.
+    row.note:SetScript("OnEnter", function(self)
+        local data = rowData[i]
+        if not data then return end
+        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+        GameTooltip:SetText(TMF.MobDB.DescribeSig(data.key), 1, 1, 1)
+        local names = TMF.MobDB.DataNames(panel.zone, data.key, data.entry)
+        if names then
+            GameTooltip:AddLine(L["MOBS_DATA_NAMES"], nil, nil, nil, true)
+            for _, name in ipairs(names) do GameTooltip:AddLine("  " .. name, 1, 1, 1) end
+        end
+        GameTooltip:AddLine(L["MOBS_NOTE_DESC"], nil, nil, nil, true)
+        GameTooltip:Show()
+    end)
+    row.note:SetScript("OnLeave", function() GameTooltip:Hide() end)
 
     row.type = CreateButton(row, "", 64, function() TMF.MobDB:CycleType(D(i).entry) end)
     row.type:SetPoint("LEFT", 230, 0)
@@ -134,7 +148,7 @@ function MobsUI:Refresh()
             row.label:SetShown(not isSig)
             row.note:SetShown(isSig)
             if isSig then
-                if not row.note:HasFocus() then row.note:SetText(e.note or TMF.MobDB.DescribeSig(data.key)) end
+                if not row.note:HasFocus() then row.note:SetText(data.label) end
             else
                 row.label:SetText(data.label)
             end

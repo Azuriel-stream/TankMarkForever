@@ -201,6 +201,7 @@ local function RefreshZone()
     -- The instance's map ID keys Data/InstanceMobs.lua (8th return; no secret annotation in the docs).
     local ok, instanceID = pcall(function() return select(8, GetInstanceInfo()) end)
     Plates.instanceID = ok and Utils.Safe(instanceID, "number", nil) or nil
+    if TMF.MobDB then TMF.MobDB.RememberInstance() end
 end
 
 local function RereadAll()

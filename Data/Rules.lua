@@ -133,22 +133,48 @@ local POWER_CODES = { RAGE = "R", MANA = "M" }
 -- matches, else { ctype = creature type all of them share (nil if they disagree), immune = union of their
 -- immunities, names = { unique names }, boss = all of them are encounter bosses }. Disagreement leaves the type
 -- unknown, so a wrong guess never picks an illegal CC.
-function Rules.IdentifyFromData(variants, powerToken, level)
+local function ParseVariant(v)
+    local t, p, lo, hi, immune, flags, name = v:match("^(%u);(.);(%d+);(%d+);(%u*);(%u*);(.*)$")
+    if not t then return nil end
+    return { t = t, p = p, lo = tonumber(lo), hi = tonumber(hi), immune = immune, name = name,
+             boss = flags:find("B", 1, true) ~= nil }
+end
+
+-- The variants with the plate's power type (any, if unknown), narrowed to the level range lo..hi when some overlap.
+-- keep(row): optional extra filter.
+local function MatchVariants(variants, powerToken, lo, hi, keep)
     local code = powerToken and (POWER_CODES[powerToken] or "?")
     local byPower, byLevel = {}, {}
     for _, v in ipairs(variants) do
-        local t, p, lo, hi, immune, flags, name = v:match("^(%u);(.);(%d+);(%d+);(%u*);(%u*);(.*)$")
-        if t and (not code or p == code) then
-            local row = { t = t, immune = immune, name = name, boss = flags:find("B", 1, true) ~= nil }
+        local row = ParseVariant(v)
+        if row and (not code or row.p == code) and (not keep or keep(row)) then
             table.insert(byPower, row)
-            if type(level) == "number" and level >= tonumber(lo) and level <= tonumber(hi) then
+            if type(lo) == "number" and type(hi) == "number" and row.lo <= hi and row.hi >= lo then
                 table.insert(byLevel, row)
             end
         end
     end
-    local rows = (#byLevel > 0) and byLevel or byPower
+    return (#byLevel > 0) and byLevel or byPower
+end
+
+local function UniqueNames(rows)
+    local names, seen = {}, {}
+    for _, row in ipairs(rows) do
+        if not seen[row.name] then seen[row.name] = true; table.insert(names, row.name) end
+    end
+    return names
+end
+
+-- Names for a learned signature entry (mob database window): the variants with its power type and boss-ness,
+-- narrowed to the levels the entry was seen at. { name, ... }, possibly empty.
+function Rules.NamesFromData(variants, powerToken, lo, hi, boss)
+    return UniqueNames(MatchVariants(variants, powerToken, lo, hi, function(row) return row.boss == boss end))
+end
+
+function Rules.IdentifyFromData(variants, powerToken, level)
+    local rows = MatchVariants(variants, powerToken, level, level)
     if #rows == 0 then return nil end
-    local t, immune, names, seenName, seenLetter, boss = rows[1].t, "", {}, {}, {}, true
+    local t, immune, seenLetter, boss = rows[1].t, "", {}, true
     for _, row in ipairs(rows) do
         if row.t ~= t then t = nil end
         if not row.boss then boss = false end
@@ -156,9 +182,8 @@ function Rules.IdentifyFromData(variants, powerToken, level)
             local c = row.immune:sub(i, i)
             if not seenLetter[c] then seenLetter[c] = true; immune = immune .. c end
         end
-        if not seenName[row.name] then seenName[row.name] = true; table.insert(names, row.name) end
     end
-    return { ctype = t and TYPE_NAMES[t], immune = immune, names = names, boss = boss }
+    return { ctype = t and TYPE_NAMES[t], immune = immune, names = UniqueNames(rows), boss = boss }
 end
 
 -- Signature: the readable fingerprint used to learn mobs where names are secret.

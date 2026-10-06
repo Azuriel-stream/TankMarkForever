@@ -50,7 +50,7 @@ In combat nothing is rewritten (attributes are frozen); the skull and cycle snip
 | `Modules/Marker.lua` | the secure buttons, snippets, attribute writer, pull lock |
 | `Modules/Overlay.lua` | planned-icon preview frames |
 | `UI/Setup.lua` | team setup window (`/tmf`): 8 rows icon/role/player, up/down, Announce |
-| `UI/Mobs.lua` | mob database window (`/tmf mobs`): zone arrows, paged rows, type/prio/icon/class/delete, signature labels |
+| `UI/Mobs.lua` | mob database window (`/tmf mobs`): zone arrows, paged rows, type/prio/icon/class/delete, signature labels; signatures named from the offline data ("Ragefire Trogg", "Searing Blade Cultist +1", all names in the tooltip), your note wins |
 | `UI/Commands.lua` | `/tmf` |
 
 ## Known limits
