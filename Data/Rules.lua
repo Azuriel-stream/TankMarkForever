@@ -128,17 +128,18 @@ local TYPE_NAMES = { B = "Beast", D = "Dragonkin", M = "Demon", E = "Elemental",
                      H = "Humanoid", C = "Critter", X = "Mechanical", N = "Not specified", T = "Totem" }
 local POWER_CODES = { RAGE = "R", MANA = "M" }
 
--- variants: { "type;power;minLevel;maxLevel;immune;name", ... }. Keeps the variants with the plate's power type
--- (any, if unknown) and, when some match, its level. Returns nil when nothing matches, else
--- { ctype = creature type all of them share (nil if they disagree), immune = union of their immunities,
---   names = { unique names } }. Disagreement leaves the type unknown, so a wrong guess never picks an illegal CC.
+-- variants: { "type;power;minLevel;maxLevel;immune;flags;name", ... } (flags: B = encounter boss). Keeps the
+-- variants with the plate's power type (any, if unknown) and, when some match, its level. Returns nil when nothing
+-- matches, else { ctype = creature type all of them share (nil if they disagree), immune = union of their
+-- immunities, names = { unique names }, boss = all of them are encounter bosses }. Disagreement leaves the type
+-- unknown, so a wrong guess never picks an illegal CC.
 function Rules.IdentifyFromData(variants, powerToken, level)
     local code = powerToken and (POWER_CODES[powerToken] or "?")
     local byPower, byLevel = {}, {}
     for _, v in ipairs(variants) do
-        local t, p, lo, hi, immune, name = v:match("^(%u);(.);(%d+);(%d+);(%u*);(.*)$")
+        local t, p, lo, hi, immune, flags, name = v:match("^(%u);(.);(%d+);(%d+);(%u*);(%u*);(.*)$")
         if t and (not code or p == code) then
-            local row = { t = t, immune = immune, name = name }
+            local row = { t = t, immune = immune, name = name, boss = flags:find("B", 1, true) ~= nil }
             table.insert(byPower, row)
             if type(level) == "number" and level >= tonumber(lo) and level <= tonumber(hi) then
                 table.insert(byLevel, row)
@@ -147,16 +148,17 @@ function Rules.IdentifyFromData(variants, powerToken, level)
     end
     local rows = (#byLevel > 0) and byLevel or byPower
     if #rows == 0 then return nil end
-    local t, immune, names, seenName, seenLetter = rows[1].t, "", {}, {}, {}
+    local t, immune, names, seenName, seenLetter, boss = rows[1].t, "", {}, {}, {}, true
     for _, row in ipairs(rows) do
         if row.t ~= t then t = nil end
+        if not row.boss then boss = false end
         for i = 1, #row.immune do
             local c = row.immune:sub(i, i)
             if not seenLetter[c] then seenLetter[c] = true; immune = immune .. c end
         end
         if not seenName[row.name] then seenName[row.name] = true; table.insert(names, row.name) end
     end
-    return { ctype = t and TYPE_NAMES[t], immune = immune, names = names }
+    return { ctype = t and TYPE_NAMES[t], immune = immune, names = names, boss = boss }
 end
 
 -- Signature: the readable fingerprint used to learn mobs where names are secret.

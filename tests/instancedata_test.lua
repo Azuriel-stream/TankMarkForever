@@ -51,7 +51,9 @@ return function(_, t)
     t.eq(Rules.IdentifyFromData(data[RFC][WORM], "RAGE", 14).ctype, "Beast", "worm: beast")
     t.eq(Rules.IdentifyFromData(data[RFC][TROGG], "ENERGY", 14), nil, "power type no NPC has: unknown")
 
-    local mixed = { "H;M;10;12;;Cultist", "U;M;10;12;;Ghost", "U;R;10;12;FZ;Ghoul" }
+    local mixed = { "H;M;10;12;;;Cultist", "U;M;10;12;;B;Ghost", "U;R;10;12;FZ;B;Ghoul" }
+    t.eq(Rules.IdentifyFromData(mixed, "RAGE", 11).boss, true, "only bosses match: boss")
+    t.eq(Rules.IdentifyFromData(mixed, "MANA", 11).boss, false, "boss + trash on one body: not a boss")
     t.eq(Rules.IdentifyFromData(mixed, "MANA", 11).ctype, nil, "types disagree: unknown, never a guess")
     t.eq(Rules.IdentifyFromData(mixed, "RAGE", 11).ctype, "Undead", "power type separates them")
     id = Rules.IdentifyFromData(mixed, nil, 40)
@@ -115,15 +117,34 @@ return function(_, t)
     TMF.Plates.Changed()
     sim:Advance(1)
 
-    -- Same pack, but the leftover caster is the polymorph-immune boss on an HD orc body (Jergosh).
-    sim.units.nameplate2 = { guid = "Creature-0-1-0-1-11518-2", friendly = false, level = 16, tier = "elite",
-                             power = "MANA", model = ORC_HD }
-    sim.units.nameplate1.level = 17   -- keep the shaman first in the kill order
-    sim:Fire("NAME_PLATE_UNIT_ADDED", "nameplate1")
-    sim:Fire("NAME_PLATE_UNIT_ADDED", "nameplate2")
+    -- Encounter bosses (the client calls them "elite") become tier boss from the data: killed before the trash, and
+    -- their own signature, so a learned trash entry of the same body doesn't apply (Oggleflint vs Ragefire Trogg).
+    local zone = TMF:GetZoneMobs(TMF.Plates.zone)
+    zone.sigs["elite|RAGE|126239"] = { type = "KILL", prio = 4 }   -- the user's trogg entry
+    sim.units.nameplate3 = { guid = "Creature-0-1-0-1-11517-3", friendly = false, level = 16, tier = "elite",
+                             power = "RAGE", model = TROGG }   -- Oggleflint
+    sim:Fire("NAME_PLATE_UNIT_ADDED", "nameplate3")
     sim:Advance(2)
-    t.eq(recs.nameplate2.dataName, "Jergosh the Invoker", "boss identified")
-    t.eq(plannedIcons(TMF).nameplate2, nil, "immune boss not sheeped")
+    t.eq(recs.nameplate3.dataName, "Oggleflint", "boss named")
+    t.eq(recs.nameplate3.tier, "boss", "boss tier from the data")
+    t.eq(recs.nameplate3.sig, "boss|RAGE|126239", "own signature, not the trogg entry")
+    t.eq(recs.nameplate1.tier, "elite", "shaman on the same body stays elite")
+    by = plannedIcons(TMF)
+    t.eq(by.nameplate3, 8, "boss skull, ahead of the prio-2 shamans")
+    t.eq(by.nameplate1, nil, "first shaman out of kill icons...")
+    t.eq(by.nameplate2, 5, "...second shaman still sheeped")
+    sim:Slash("/tmf plan")
+    local bossLine = false
+    for _, line in ipairs(sim.output) do if line:find("Oggleflint (kill, prio 1", 1, true) and line:find("boss (data)", 1, true) then bossLine = true end end
+    t.ok(bossLine, "/tmf plan shows the data boss")
+    -- Jergosh (HD orc body shared with trash casters): boss, never CC'd.
+    sim.units.nameplate3 = { guid = "Creature-0-1-0-1-11518-3", friendly = false, level = 16, tier = "elite",
+                             power = "MANA", model = ORC_HD }
+    sim:Fire("NAME_PLATE_UNIT_ADDED", "nameplate3")
+    sim:Advance(2)
+    t.eq(recs.nameplate3.dataName, "Jergosh the Invoker", "Jergosh identified")
+    t.eq(plannedIcons(TMF).nameplate3, 8, "Jergosh skull")
+    t.ok(not Rules.CCTierEligible(recs.nameplate3.tier), "boss tier is never CC'd")
 
     -- Open world (no data): readable creature type wins, no immunities.
     local sim2 = t.fresh(function(s)

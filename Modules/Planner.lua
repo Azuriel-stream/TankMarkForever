@@ -174,6 +174,7 @@ end
 function Planner.TypeText(rec)
     local text = rec.ctype or "type ?"
     if rec.ctypeSource == "data" then text = text .. " (data)" end
+    if rec.tierSource == "data" then text = text .. ", boss (data)" end
     if rec.immune and rec.immune ~= "" then text = text .. ", immune " .. rec.immune end
     return text
 end

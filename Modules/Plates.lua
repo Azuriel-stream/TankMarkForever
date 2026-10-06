@@ -32,18 +32,24 @@ end
 
 -- Inside instances the creature type is secret; the offline data (Data/InstanceMobs.lua: instance map + model file ->
 -- the NPCs using it) restores it when every NPC matching the plate's power type and level agrees. Also gives their
--- CC immunities and names. A readable UnitCreatureType (open world) always wins.
+-- CC immunities and names. A readable UnitCreatureType (open world) always wins. A dungeon boss (every matching NPC
+-- completes an encounter) gets tier "boss": killed first, never CC'd, and its own signature instead of sharing the
+-- trash entry of its body (Oggleflint vs Ragefire Trogg). Recomputes the signatures.
 function Plates.Identify(rec)
     rec.ctype, rec.ctypeSource = rec.unitType, rec.unitType and "unit" or nil
+    rec.tier, rec.tierSource = rec.unitTier, nil
     rec.immune, rec.dataName = nil, nil
     local mobs = Plates.instanceID and TMF.InstanceMobs and TMF.InstanceMobs[Plates.instanceID]
     local variants = mobs and rec.model and mobs[rec.model]
-    if not variants then return end
-    local id = Rules.IdentifyFromData(variants, rec.power, rec.level)
-    if not id then return end
-    rec.immune = id.immune
-    if #id.names == 1 then rec.dataName = id.names[1] end
-    if not rec.ctype and id.ctype then rec.ctype, rec.ctypeSource = id.ctype, "data" end
+    local id = variants and Rules.IdentifyFromData(variants, rec.power, rec.level)
+    if id then
+        rec.immune = id.immune
+        if #id.names == 1 then rec.dataName = id.names[1] end
+        if not rec.ctype and id.ctype then rec.ctype, rec.ctypeSource = id.ctype, "data" end
+        if id.boss and rec.tier ~= "boss" then rec.tier, rec.tierSource = "boss", "data" end
+    end
+    rec.sigBase = Rules.Signature(rec.level, rec.tier, rec.power)
+    rec.sig = Rules.Signature(rec.level, rec.tier, rec.power, rec.model)
 end
 
 -- Everything readable about a plate. In instances name/guid/creature type are secret (nil here);
@@ -59,15 +65,13 @@ function Plates:Read(token, rec)
     local okG, guid = pcall(UnitGUID, token)
     rec.npcID = okG and NpcID(Utils.Safe(guid, "string", nil)) or nil
     rec.level = Utils.Safe(UnitLevel(token), "number", -1)
-    rec.tier = Utils.Safe(UnitClassification(token), "string", "normal")
-    if Utils.Flag(UnitIsBossMob, token) then rec.tier = "boss" end
+    rec.unitTier = Utils.Safe(UnitClassification(token), "string", "normal")
+    if Utils.Flag(UnitIsBossMob, token) then rec.unitTier = "boss" end
     local okP, _, powerToken = pcall(UnitPowerType, token)
     rec.power = okP and Utils.Safe(powerToken, "string", nil) or nil
     local okT, ctype = pcall(UnitCreatureType, token)
     rec.unitType = okT and Utils.Safe(ctype, "string", nil) or nil
-    Plates.Identify(rec)
-    rec.sigBase = Rules.Signature(rec.level, rec.tier, rec.power)
-    rec.sig = Rules.Signature(rec.level, rec.tier, rec.power, rec.model)
+    Plates.Identify(rec)   -- sets ctype, tier, sig, sigBase
     local okA, canAttack = pcall(UnitCanAttack, "player", token)
     rec.hostile = okA and not Utils.IsSecret(canAttack) and canAttack == true
     rec.player = Utils.Flag(UnitIsPlayer, token)
@@ -105,7 +109,6 @@ local function ApplyModel(token, rec, fileID)
     if Plates.records[token] ~= rec then return end            -- plate gone or reused meanwhile
     if Utils.IsSecret(fileID) or type(fileID) ~= "number" or fileID <= 0 or rec.model == fileID then return end
     rec.model = fileID
-    rec.sig = Rules.Signature(rec.level, rec.tier, rec.power, fileID)
     Plates.Identify(rec)
     Changed()
 end

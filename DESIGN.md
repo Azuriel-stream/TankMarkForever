@@ -72,6 +72,9 @@ In combat nothing is rewritten (attributes are frozen); the skull and cycle snip
   NPCs that match the plate's power type and level, but only when they all agree. Player-race bodies shared by
   humanoids and undead (BRD, Scholomance, Stratholme, Dire Maul, ZF, Sunken Temple) often stay unknown → no auto CC.
   NPCs summoned by scripts aren't in the spawn data. Immunities come from the server emulator DB, not Blizzard.
+- Dungeon bosses show as "elite" on Forever. The data marks encounter bosses (their kill completes a DungeonEncounter);
+  when every matching NPC is one, the tier becomes "boss": kill priority 1, no CC, and its own signature
+  ("boss|RAGE|<model>"), so it doesn.t share the learned entry of trash on the same body.
 
 ## Team setup (milestone 3)
 One active setup (user choice), edited in `/tmf`. Rows in kill order; each row = icon + role + optional player:
