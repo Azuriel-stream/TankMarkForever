@@ -42,11 +42,13 @@ In combat nothing is rewritten (attributes are frozen); the skull and cycle snip
 | `Core/Utils.lua` | secret-safe reads, icon helpers |
 | `Data/Rules.lua` | pure legacy rules: CC legality, role×tier priority, CC worthiness, power→role, signature |
 | `Modules/Plates.lua` | nameplate records, Shift-hover selection, deaths |
+| `Modules/MobDB.lua` | learned mobs per zone (by name / by signature), learn/forget, edits, labels |
 | `Modules/Team.lua` | the team setup (kill order, tank owners, CC players), roster, announcement |
 | `Modules/Planner.lua` | pure `Build` (legacy `DecidePull` port) + shell (rebuild out of combat, reserved icons, report) |
 | `Modules/Marker.lua` | the secure buttons, snippets, attribute writer, pull lock |
 | `Modules/Overlay.lua` | planned-icon preview frames |
 | `UI/Setup.lua` | team setup window (`/tmf`): 8 rows icon/role/player, up/down, Announce |
+| `UI/Mobs.lua` | mob database window (`/tmf mobs`): zone arrows, paged rows, type/prio/icon/class/delete, signature labels |
 | `UI/Commands.lua` | `/tmf` |
 
 ## Known limits
@@ -73,8 +75,17 @@ CC inside instances: creature type is secret, so only mobs taught as CC (`/tmf l
 **Announce** (button or `/tmf announce`): `[TankMark] Kill order: {rt8} Tank > {rt7} > ...` then `[TankMark] CC: {rt5} Mage (Polymorph)` to
 party/raid; nothing is posted automatically. No HUD (user choice).
 
+## Mob database (milestone 2)
+`/tmf mobs` (or **Mobs** in the setup window). Per zone (arrows switch zones; no dropdowns), 10 rows per page:
+- **name** rows: matched by mob name (open world). **sig** rows: matched by level|classification|power type (instances,
+  where names are hidden); the label is an edit box, so "lvl 14 elite caster" can be named "Ragefire Shaman". The label
+  is used in `/tmf plan`.
+- Per row: type Kill/CC/Ignore, priority -/+ (1 = first), fixed icon (click cycles auto, skull..star; right-click: auto),
+  CC class (CC rows), delete. **Learn target** adds the target with the rules' default priority.
+- Legacy TankMark data isn't imported: its database is keyed by name for raids, where names are secret on Forever.
+
 ## Milestones
 1. **Marking loop** (done, in-game confirmed): plates, planner (rules + learning via `/tmf learn`), the four keys, overlay, tests.
-2. Mob database UI: per-zone list of learned names and signatures, edit prio/icon/type, import of legacy data.
+2. **Mob database UI** (built, in-game test pending): per-zone list, edit type/prio/icon/class, signature labels.
 3. **Team setup** (built, in-game test pending): kill order and CC from the setup window, announcement. No HUD.
 4. Sync: share the database and profiles over addon messages (work in dungeons, including trash combat).

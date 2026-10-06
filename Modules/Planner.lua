@@ -151,13 +151,10 @@ function Planner:Rebuild()
     TMF:Fire("PLAN_CHANGED", Planner.plan)
 end
 
--- "lvl 15 elite caster" when the name is secret
+-- Name, else the player's note on the signature, else "lvl 15 elite caster"
 function Planner.Describe(entryOrRec)
     local rec = entryOrRec.rec or entryOrRec
-    if rec.name then return rec.name end
-    local role = TMF.L["ROLE_" .. (Rules.RoleFromPower(rec.power))]
-    local level = rec.level == -1 and "??" or tostring(rec.level)
-    return string.format("lvl %s %s %s", level, rec.tier, role)
+    return TMF.MobDB:Label(rec)
 end
 
 function Planner:Report()

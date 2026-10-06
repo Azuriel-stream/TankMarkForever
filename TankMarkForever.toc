@@ -20,10 +20,12 @@ Data\Rules.lua
 # Functional Modules
 Modules\Plates.lua
 Modules\Team.lua
+Modules\MobDB.lua
 Modules\Planner.lua
 Modules\Marker.lua
 Modules\Overlay.lua
 
 # UI and commands
 UI\Setup.lua
+UI\Mobs.lua
 UI\Commands.lua

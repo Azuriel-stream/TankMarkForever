@@ -78,6 +78,31 @@ L["CC_PRIEST"] = "Shackle"
 L["CC_DRUID"] = "Hibernate"
 L["CC_SHAMAN"] = "Hex"
 
+-- Mob database window
+L["MOBS_TITLE"] = "TankMark Forever: mob database"
+L["MOBS_EMPTY"] = "Nothing learned in this zone yet. Target a mob and click Learn target, or use /tmf learn."
+L["MOBS_PAGE"] = "Page %d/%d"
+L["MOBS_ZONE"] = "%s (%d)"
+L["MOBS_KIND_NAME"] = "name"
+L["MOBS_KIND_SIG"] = "sig"
+L["MOBS_KIND_DESC"] = "name: matched by mob name (open world). sig: matched by level + classification + power type, because names are hidden inside dungeons and raids; give it a label."
+L["MOBS_NOTE_DESC"] = "Your label for this signature (shown in /tmf plan). Enter to save."
+L["MOBS_TYPE_DESC"] = "Click to cycle: Kill (in the kill order by priority), CC (gets a CC icon from the team setup), Ignore (never marked)."
+L["MOBS_PRIO_DESC"] = "Kill priority: 1 = killed first, 9 = last."
+L["MOBS_ICON_DESC"] = "Click: fixed icon for this mob (auto, then skull to star). Right-click: back to auto."
+L["MOBS_CLASS_DESC"] = "CC: which class should CC it (any = the first CC player in the setup)."
+L["MOBS_AUTO"] = "auto"
+L["MOBS_ANY"] = "any"
+L["TYPE_KILL"] = "Kill"
+L["TYPE_CC"] = "CC"
+L["TYPE_IGNORE"] = "Ignore"
+L["BTN_LEARN_TARGET"] = "Learn target"
+L["BTN_LEARN_TARGET_DESC"] = "Add your current target with a default priority from the rules."
+L["BTN_MOBS"] = "Mobs"
+L["BTN_MOBS_DESC"] = "Open the mob database (/tmf mobs)."
+L["BTN_PREV"] = "<"
+L["BTN_NEXT"] = ">"
+
 L["KEY_UNBOUND"] = "|cffff6060not bound|r"
 L["COMBAT_LOCKED"] = "Leave combat first."
 
@@ -92,6 +117,7 @@ L["DEBUG_LAST"] = "Last %s: %s"
 L["HELP"] = {
     "/tmf - open the team setup (kill order, CC)",
     "/tmf announce - post the kill order and CC to party/raid",
+    "/tmf mobs - open the mob database (what you taught, per zone)",
     "/tmf plan - print the current pack plan",
     "/tmf select clear - clear the Shift-hover pack selection",
     "/tmf learn <1-9|ignore|cc> [icon|class] - teach the hovered/targeted mob (kill priority 1 = first)",

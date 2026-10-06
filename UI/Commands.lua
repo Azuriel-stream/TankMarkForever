@@ -6,26 +6,10 @@ local function OnOff(v)
     return v and "|cff00ff00on|r" or "|cffff6060off|r"
 end
 
--- The mob to learn: mouseover first (the natural way in a dungeon), then the target.
-local function LearnUnit()
-    for _, unit in ipairs({ "mouseover", "target" }) do
-        local ok, canAttack = pcall(UnitCanAttack, "player", unit)
-        if UnitExists(unit) and ok and not TMF.Utils.IsSecret(canAttack) and canAttack == true then
-            return TMF.Plates:Read(unit, {})
-        end
-    end
-    return nil
-end
-
--- Name where readable (open world), otherwise the signature (instances).
-local function LearnKey(rec, zoneMobs)
-    if rec.name then return zoneMobs.names, rec.name, rec.name end
-    return zoneMobs.sigs, rec.sig, TMF.Planner.Describe(rec)
-end
+-- The mob to learn: mouseover first (out of combat, deliberate), then the target.
+local LEARN_UNITS = { "mouseover", "target" }
 
 local function Learn(arg1, arg2)
-    local rec = LearnUnit()
-    if not rec then TMF:Print(L["LEARN_NO_UNIT"]) return end
     local entry
     local icon = tonumber(arg2)
     local class = not icon and arg2 and TMF.Team.CC_SPELL[string.upper(arg2)] and string.upper(arg2) or nil
@@ -40,26 +24,28 @@ local function Learn(arg1, arg2)
         return
     end
     if entry.icon and (entry.icon < 1 or entry.icon > 8) then entry.icon = nil end
-    local store, key, label = LearnKey(rec, TMF:GetZoneMobs(TMF.Plates.zone))
-    store[key] = entry
-    local what = entry.type == "IGNORE" and "ignore"
-        or string.format("%s prio %d%s%s", entry.type, entry.prio, entry.icon and (" " .. TMF.Utils.IconText(entry.icon)) or "",
-            entry.class and (" " .. entry.class) or "")
-    TMF:Print(L["LEARN_SAVED"], label, what)
-    TMF.Plates.Changed()
+    for _, unit in ipairs(LEARN_UNITS) do
+        local saved, label = TMF.MobDB:Learn(unit, entry)
+        if saved then
+            local what = saved.type == "IGNORE" and "ignore"
+                or string.format("%s prio %d%s%s", saved.type, saved.prio,
+                    saved.icon and (" " .. TMF.Utils.IconText(saved.icon)) or "", saved.class and (" " .. saved.class) or "")
+            TMF:Print(L["LEARN_SAVED"], label, what)
+            return
+        end
+    end
+    TMF:Print(L["LEARN_NO_UNIT"])
 end
 
 local function Forget()
-    local rec = LearnUnit()
-    if not rec then TMF:Print(L["LEARN_NO_UNIT"]) return end
-    local store, key, label = LearnKey(rec, TMF:GetZoneMobs(TMF.Plates.zone))
-    if store[key] then
-        store[key] = nil
-        TMF:Print(L["LEARN_FORGOT"], label)
-        TMF.Plates.Changed()
-    else
-        TMF:Print(L["LEARN_NOT_FOUND"], label)
+    for _, unit in ipairs(LEARN_UNITS) do
+        if UnitExists(unit) then
+            local label = TMF.MobDB:ForgetUnit(unit)
+            if label then TMF:Print(L["LEARN_FORGOT"], label) else TMF:Print(L["LEARN_NOT_FOUND"], unit) end
+            return
+        end
     end
+    TMF:Print(L["LEARN_NO_UNIT"])
 end
 
 local function Status()
@@ -92,6 +78,8 @@ SlashCmdList.TANKMARKFOREVER = function(msg)
     local cmd, arg1, arg2 = strsplit(" ", string.lower(strtrim(msg or "")))
     if cmd == "" or cmd == "setup" then
         TMF.Setup:Toggle()
+    elseif cmd == "mobs" then
+        TMF.MobsUI:Toggle()
     elseif cmd == "announce" then
         TMF.Team:Announce()
     elseif cmd == "plan" then
