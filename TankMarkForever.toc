@@ -3,6 +3,7 @@
 ## Notes: Pre-pull raid marking for tanks: plans the pack, previews the icons, and marks it with one key.
 ## Author: Azuriel
 ## Version: 0.1.0
+## IconTexture: Interface\AddOns\TankMarkForever\Media\icon.tga
 ## SavedVariables: TankMarkForeverDB
 
 # Locales
