@@ -124,18 +124,26 @@ end
 -- =========================================================================
 
 -- Icons already on some mob. GetNextAvailableRaidTargetMarkerIndex was readable in the open world and in a
--- dungeon (run 3); icons on dead mobs count as free. Plus: plates that visibly carry an icon keep it.
+-- dungeon (run 3); icons on dead mobs count as free (its treatDeadNonFriendlyAsAvailable flag). Plus: plates that
+-- visibly carry an icon keep it. Also returns the icons only corpses wear (taken without the flag, free with it), so
+-- /tmf plan shows the flag at work.
+local function IconTaken(icon, deadAreFree)
+    local ok, nextFree = pcall(GetNextAvailableRaidTargetMarkerIndex, icon, false, false, deadAreFree)
+    return ok and not Utils.IsSecret(nextFree) and type(nextFree) == "number" and nextFree ~= icon
+end
+
 local function ReservedIcons()
-    local reserved = {}
+    local reserved, onCorpses = {}, {}
     if GetNextAvailableRaidTargetMarkerIndex then
         for icon = 1, 8 do
-            local ok, nextFree = pcall(GetNextAvailableRaidTargetMarkerIndex, icon, false, false, true)
-            if ok and not Utils.IsSecret(nextFree) and type(nextFree) == "number" and nextFree ~= icon then
+            if IconTaken(icon, true) then
                 reserved[icon] = true
+            elseif IconTaken(icon, false) then
+                onCorpses[icon] = true
             end
         end
     end
-    return reserved
+    return reserved, onCorpses
 end
 
 function Planner:Rebuild()
@@ -151,12 +159,14 @@ function Planner:Rebuild()
         end
     end
     local zoneMobs = TMF.db.mobs[Plates.zone]
+    local reserved, onCorpses = ReservedIcons()
     Planner.plan = Planner.Build(recs, zoneMobs, {
         ladder = TMF.Team:GetLadder(),
         ccSlots = TMF.Team:GetCCSlots(),
-        reserved = ReservedIcons(),
+        reserved = reserved,
     })
     Planner.plan.skipped = skipped
+    Planner.plan.onCorpses = onCorpses
     -- Remember the levels each learned model entry is seen at (shown in the mob database window).
     if zoneMobs then
         for _, rec in ipairs(recs) do
@@ -206,6 +216,17 @@ function Planner:Report()
             print(string.format(L["PLAN_NO_ICON"], Planner.Describe(s.rec), L[s.reason]))
         end
     end
+    -- Icons the plan leaves alone (a living mob wears them) and icons on corpses (free to reuse).
+    local function IconList(set)
+        local list = {}
+        for icon = 8, 1, -1 do
+            if set and set[icon] then table.insert(list, Utils.IconText(icon)) end
+        end
+        return table.concat(list, " ")
+    end
+    local worn, corpses = IconList(plan.reserved), IconList(plan.onCorpses)
+    if worn ~= "" then print(string.format(L["PLAN_WORN"], worn)) end
+    if corpses ~= "" then print(string.format(L["PLAN_CORPSES"], corpses)) end
     if InCombatLockdown() then TMF:Print(L["PLAN_FROZEN"]) end
 end
 

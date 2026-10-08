@@ -64,6 +64,22 @@ return function(_, t)
         end
     end
 
+    t.ok(env.TankMarkForever.Planner.plan.reserved[8], "living skull mob: skull reserved")
+
+    -- The skull mob dies (in combat): after combat the corpse's skull is free again and planned on the next mob.
+    sim:EnterCombat()
+    sim.units.nameplate1.dead = true
+    sim:Fire("UNIT_HEALTH", "nameplate1")
+    sim:Advance(1)
+    sim:LeaveCombat()
+    sim:Advance(1)
+    local plan = env.TankMarkForever.Planner.plan
+    t.ok(not plan.reserved[8], "skull on a corpse isn't reserved")
+    t.ok(plan.onCorpses[8], "skull reported as on a corpse")
+    t.eq(env.TMF_Mark1:GetAttribute("marker"), 8, "skull planned again after the kill")
+    t.ok(env.TMF_Mark1:GetAttribute("unit") ~= "nameplate1", "not on the corpse")
+    sim:Slash("/tmf plan")
+
     -- Debug trace: key presses are logged when on.
     sim:Slash("/tmf debug on")
     env.TMF_SkullButton:Click("LeftButton", true)

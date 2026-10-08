@@ -38,10 +38,12 @@ function H.install(s)
     env.IsInInstance = function() return false, "none" end
     env.IsShiftKeyDown = function() return s.shift end
     env.UnitAffectingCombat = function(u) local x = U(u); return x and x.inCombat or false end
-    -- Free icons: the lowest index >= start that no unit wears.
-    env.GetNextAvailableRaidTargetMarkerIndex = function(start)
+    -- Free icons: the lowest index >= start that no unit wears (with the flag, icons on dead units count as free).
+    env.GetNextAvailableRaidTargetMarkerIndex = function(start, _, _, deadAreFree)
         local worn = {}
-        for _, x in pairs(s.units) do if x.raidTarget then worn[x.raidTarget] = true end end
+        for _, x in pairs(s.units) do
+            if x.raidTarget and not (deadAreFree and x.dead) then worn[x.raidTarget] = true end
+        end
         for i = start, 8 do if not worn[i] then return i end end
         return 0
     end
