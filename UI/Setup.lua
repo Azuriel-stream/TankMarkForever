@@ -94,7 +94,7 @@ function Setup:Refresh()
                 text = text .. " |cffff6060" .. L["SETUP_NO_CC"] .. "|r"
             end
         else
-            text = data.role == "CC" and ("|cffff6060" .. L["SETUP_NEEDS_PLAYER"] .. "|r") or L["SETUP_ANYONE"]
+            text = data.role == "TANK" and L["SETUP_ANYONE"] or ("|cffff6060" .. L["SETUP_NEEDS_PLAYER"] .. "|r")
         end
         r.player:SetText(text)
         r.up:SetEnabled(i > 1)

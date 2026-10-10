@@ -7,9 +7,9 @@ TMF.DefaultConfig = {
     nearOnly = true,        -- plan only mobs within ~30 yd (unless a Shift-hover selection is active)
     record = true,         -- inside dungeons/raids, new mob types become database entries automatically
 
-    -- The team setup (one active setup): row order = kill order. role: "TANK" (optionally owned by a tank) or
-    -- "CC" (needs a player in the group); off = true: switched off in the HUD (icon not used).
-    -- player = full name ("First Last") or nil.
+    -- The team setup (one active setup): row order = kill order. role: "TANK" (optionally owned by a tank),
+    -- "CC" (needs a player in the group) or "FOLLOW" (the player wears the mark; not on skull);
+    -- off = true: switched off in the HUD (icon not used). player = full name ("First Last") or nil.
     setup = {
         rows = {
             { icon = 8, role = "TANK" }, { icon = 7, role = "TANK" }, { icon = 6, role = "TANK" },
@@ -18,7 +18,8 @@ TMF.DefaultConfig = {
         },
     },
 
-    -- HUD: always shown; clicking its title bar collapses it. point = { x, y } of the top-left corner, nil = default.
+    -- HUD: always shown; clicking its title bar collapses it. point = { x, y } of the top-left corner, nil = default;
+    -- locked = true: the title bar doesn't drag.
     hud = { collapsed = false },
 
     -- Learned mobs, per zone. Names only work where they're readable (the open world); inside instances the

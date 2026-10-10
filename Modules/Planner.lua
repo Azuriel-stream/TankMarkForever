@@ -173,6 +173,7 @@ function Planner:Rebuild()
     end
     local zoneMobs = TMF.db.mobs[Plates.zone]
     local reserved, onCorpses = ReservedIcons()
+    for icon in pairs(TMF.Team:FollowIcons()) do reserved[icon] = true end   -- a fixed icon must never move them
     Planner.plan = Planner.Build(recs, zoneMobs, {
         ladder = TMF.Team:GetLadder(),
         ccSlots = TMF.Team:GetCCSlots(),

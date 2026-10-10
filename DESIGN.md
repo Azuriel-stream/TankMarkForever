@@ -32,7 +32,7 @@ In combat nothing is rewritten (attributes are frozen); the skull and cycle snip
 | Mark planned pack | `TMF_PackButton` | one press marks every planned mob (5+ at once confirmed, no throttle) |
 | Next skull on target | `TMF_SkullButton` | override: skull moves to your (hostile, living) target; works in combat |
 | Next free icon on target | `TMF_CycleButton` | next ladder icon nobody wears, on your target (adds); skips marked mobs |
-| Clear all marks | `TMF_ClearButton` | `clear-all`; also resets the selection |
+| Clear all marks | `TMF_ClearButton` | macro: `/click TMF_ClearAll` (`clear-all`), then `/click TMF_FollowK` per follow mark; also resets the selection |
 
 ## Modules
 | File | Role |
@@ -88,6 +88,11 @@ One active setup (user choice), edited in `/tmf`. Rows in kill order; each row =
 Every mob is killed, so the role only says what happens to the marked mob first (user, 2026-10-10; legacy model):
 - **Tank**: in the kill ladder in row order; an owning tank (optional) takes the icon out of the ladder while dead/offline.
 - **CC**: needs a player in the group; becomes a CC slot (class/race from the roster) for the planner's CC pass.
+- **Follow**: needs a player; that group member (the tank) wears the mark so the group can follow them. Never planned
+  on a mob (reserved, even while off), not in the ladder or the cycle key, not allowed on skull (the next-skull key
+  moves skull). Buttons `TMF_Follow1..8` (raidtarget, `set-unmarked`: re-applying a worn icon removes it,
+  kb/gotchas.md#mark-toggle), unit `player` for yourself, else the member's party/raid token, set out of combat.
+  The pack key puts follow marks on first; the clear key clears all, then puts them back. Announced as `Follow:`.
 
 **On/off is separate from the role** and lives in the HUD (`row.off`, saved): a mark that's off isn't planned, isn't
 handed out by the next-free-icon key and isn't announced. Setups saved before the split migrate at load (Kill → Tank,
@@ -96,7 +101,8 @@ Off → Tank switched off).
 ## HUD (`UI/HUD.lua`)
 Legacy `TankMark_HUD.lua` concept: the leader fits the marks to the pack in front of them. Always shown while
 TankMark is enabled (user choice). Like the quest tracker, clicking the title bar collapses/expands it; dragging the
-title bar moves it. Position (top-left corner), collapsed state and every mark's on/off are saved.
+title bar moves it unless the lock icon in the title bar is on. Position (top-left corner), lock, collapsed state and
+every mark's on/off are saved. Sections: Tank, CC, Follow.
 - Rows: Tank marks (numbered in kill order), then CC marks, each with the owning player (class colour) and the mob
   the current plan puts the mark on. Which mob actually *wears* a mark can't be shown (secret on Forever).
 - Left-click a row: switch the mark on/off (plan and keys follow at once; in combat it applies when combat ends).
@@ -132,8 +138,5 @@ party/raid; nothing is posted automatically. Marks switched off aren't announced
 3. **Team setup** (done, in-game confirmed): kill order and CC from the setup window, announcement.
    **Tank/CC roles + HUD on/off**, mob types Tank/CC/Ignore + CC fallback (in-game confirmed 2026-10-10).
 4. Sync: share the database and profiles over addon messages (work in dungeons, including trash combat).
-5. **Follow mark** (designed, next after the HUD): a third row type puts its mark on a group member (the tank) so the
-   group can follow them. A `TMF_TankMark` raidtarget button with `set-unmarked` (never toggles a worn mark off:
-   re-applying a worn icon by hand removes it, in-game 2026-10-10); the clear key becomes clear-all + re-mark the tank,
-   the pack key re-marks the tank first. Open question: does the client see the clear-all before the re-mark in the
-   same press?
+5. **Follow mark** + HUD lock (in-game confirmed 2026-10-10): see Team setup. One clear press keeps the follow mark:
+   the client registers the clear-all before the follow button's `set-unmarked` check in the same macro.

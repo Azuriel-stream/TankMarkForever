@@ -8,6 +8,7 @@ local HUD = TMF:RegisterModule("HUD")
 local L, Utils = TMF.L, TMF.Utils
 
 local WIDTH, TITLE_H, ROW_H = 220, 20, 18
+local ROLE_ORDER = { "TANK", "CC", "FOLLOW" }
 local hud
 local rowIndex = {}   -- row frame -> setup row (plain table: unset frame fields aren't nil in wowsim)
 local draggedAt
@@ -106,7 +107,9 @@ local function CreateHUD()
     title.toggle:SetPoint("LEFT", 4, 0)
     title.text = title:CreateFontString(nil, "ARTWORK", "GameFontNormal")
     title.text:SetPoint("LEFT", title.toggle, "RIGHT", 4, 0)
-    title:SetScript("OnDragStart", function() f:StartMoving() end)
+    title:SetScript("OnDragStart", function()
+        if not TMF.db.hud.locked then f:StartMoving() end
+    end)
     title:SetScript("OnDragStop", function()
         f:StopMovingOrSizing()
         SavePosition()
@@ -117,19 +120,37 @@ local function CreateHUD()
         TMF.db.hud.collapsed = not TMF.db.hud.collapsed
         HUD:Refresh()
     end)
-    Tooltip(title, function() return L["HUD_TITLE"] end, function() return L["HUD_TITLE_DESC"] end)
+    Tooltip(title, function() return L["HUD_TITLE"] end, function()
+        return TMF.db.hud.locked and L["HUD_TITLE_DESC_LOCKED"] or L["HUD_TITLE_DESC"]
+    end)
     f.title = title
+
+    -- Lock: bright while the position is locked, faded while the title bar can be dragged.
+    local lock = CreateFrame("Button", "TankMarkForeverHUDLock", title)
+    lock:SetSize(16, 16)
+    lock:SetPoint("RIGHT", -3, 0)
+    lock:RegisterForClicks("LeftButtonUp")
+    lock.icon = lock:CreateTexture(nil, "ARTWORK")
+    lock.icon:SetAllPoints()
+    lock.icon:SetTexture("Interface\\LFGFrame\\UI-LFG-ICON-LOCK")
+    lock:SetScript("OnClick", function()
+        TMF.db.hud.locked = not TMF.db.hud.locked or nil
+        HUD:Refresh()
+    end)
+    Tooltip(lock, function() return TMF.db.hud.locked and L["HUD_LOCKED"] or L["HUD_UNLOCKED"] end,
+        function() return L["HUD_LOCK_DESC"] end)
+    f.lock = lock
 
     local allOn = CreateFrame("Button", "TankMarkForeverHUDAllOn", title, "UIPanelButtonTemplate")
     allOn:SetSize(56, 18)
-    allOn:SetPoint("RIGHT", -2, 0)
+    allOn:SetPoint("RIGHT", lock, "LEFT", -3, 0)
     allOn:SetText(L["HUD_ALL_ON"])
     allOn:SetScript("OnClick", function() TMF.Team:AllOn() end)
     Tooltip(allOn, function() return L["HUD_ALL_ON"] end, function() return L["HUD_ALL_ON_DESC"] end)
     f.allOn = allOn
 
     f.headers = {}
-    for _, key in ipairs({ "TANK", "CC" }) do
+    for _, key in ipairs(ROLE_ORDER) do
         local h = f:CreateFontString(nil, "ARTWORK", "GameFontNormalSmall")
         h:SetText(L["HUD_" .. key])
         f.headers[key] = h
@@ -147,7 +168,9 @@ local function RowText(data, planned)
         table.insert(parts, m and Utils.ClassColored(m.short, m.class) or ("|cff888888" .. data.player .. "|r"))
     end
     if planned then table.insert(parts, planned) end
-    local text = #parts > 0 and table.concat(parts, " - ") or ("|cff888888" .. L["HUD_FREE"] .. "|r")
+    local text = #parts > 0 and table.concat(parts, " - ")
+        or (data.role == "TANK" and ("|cff888888" .. L["HUD_FREE"] .. "|r"))
+        or ("|cffff6060" .. L["SETUP_NEEDS_PLAYER"] .. "|r")
     if data.off then
         -- Strip colours so the whole row reads as dimmed.
         local plain = text:gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", "")
@@ -168,6 +191,9 @@ function HUD:Refresh()
     hud.title.toggle:SetTexture(collapsed and "Interface\\Buttons\\UI-PlusButton-Up" or "Interface\\Buttons\\UI-MinusButton-Up")
     hud.title.text:SetText(L["HUD_TITLE"] .. (nOff > 0 and (" |cff888888" .. string.format(L["HUD_N_OFF"], nOff) .. "|r") or ""))
     hud.allOn:SetShown(nOff > 0 and not collapsed)
+    local locked = TMF.db.hud.locked and true or false
+    hud.lock.icon:SetDesaturated(not locked)
+    hud.lock.icon:SetAlpha(locked and 1 or 0.35)
 
     local planned = {}
     for _, e in ipairs(TMF.Planner.plan.entries or {}) do
@@ -181,9 +207,9 @@ function HUD:Refresh()
         return
     end
 
-    -- Tank rows first (kill order), then CC rows, each under its header.
+    -- Tank rows first (kill order), then CC, then Follow rows, each under its header.
     local y, used, killN = -TITLE_H - 2, 0, 0
-    for _, role in ipairs({ "TANK", "CC" }) do
+    for _, role in ipairs(ROLE_ORDER) do
         local first = true
         for i, data in ipairs(rows) do
             if data.role == role then

@@ -68,7 +68,7 @@ function Team.Migrate(rows)
     for _, row in ipairs(rows) do
         if row.role == "OFF" then
             row.role, row.off = "TANK", true
-        elseif row.role ~= "CC" then
+        elseif row.role ~= "CC" and row.role ~= "FOLLOW" then
             row.role = "TANK"
         end
     end
@@ -110,10 +110,37 @@ function Team:GetCCSlots()
     return slots
 end
 
+-- Follow rows put their mark on a group member (the tank) so the group can follow them.
+-- Icons of every Follow row: never planned on a mob, even while the row is off.
+function Team:FollowIcons()
+    local icons = {}
+    for _, row in ipairs(Team:Rows()) do
+        if row.role == "FOLLOW" then icons[row.icon] = true end
+    end
+    return icons
+end
+
+-- Follow rows that are on and whose player is in the group: { icon, unit }. The unit token is read out of combat
+-- (secure attributes); "player" for yourself, since it never changes when the roster does.
+function Team:GetFollows()
+    local follows = {}
+    local me = Team.FullName("player")
+    for _, row in ipairs(Team:Rows()) do
+        if row.role == "FOLLOW" and row.player and not row.off then
+            local m = Team:FindMember(row.player)
+            if m then
+                table.insert(follows, { icon = row.icon, unit = (m.name == me) and "player" or m.unit })
+            end
+        end
+    end
+    return follows
+end
+
 -- =========================================================================
 -- Editing (setup window)
 -- =========================================================================
-local ROLE_CYCLE = { TANK = "CC", CC = "TANK" }
+-- Skull can't be a Follow mark: the next-skull key moves skull, which would take it off the tank.
+local ROLE_CYCLE = { TANK = "CC", CC = "FOLLOW", FOLLOW = "TANK" }
 
 local function Changed()
     TMF:Fire("SETUP_CHANGED")
@@ -123,6 +150,7 @@ end
 function Team:CycleRole(i)
     local row = Team:Rows()[i]
     row.role = ROLE_CYCLE[row.role] or "TANK"
+    if row.role == "FOLLOW" and row.icon == 8 then row.role = "TANK" end
     Changed()
 end
 
@@ -184,8 +212,8 @@ function Team:Reset()
 end
 
 -- =========================================================================
--- Announcement, two lines: "[TankMark] Kill order: {rt8} Tankard > {rt7} > {rt6}" and
--- "[TankMark] CC: {rt5} Lumen (Polymorph)"
+-- Announcement, up to three lines: "[TankMark] Kill order: {rt8} Tankard > {rt7} > {rt6}",
+-- "[TankMark] CC: {rt5} Lumen (Polymorph)" and "[TankMark] Follow: {rt1} Tankard"
 -- =========================================================================
 local function ShortName(full)
     local m = Team:FindMember(full)
@@ -193,7 +221,7 @@ local function ShortName(full)
 end
 
 function Team:BuildAnnouncement()
-    local kill, cc = {}, {}
+    local kill, cc, follow = {}, {}, {}
     for _, row in ipairs(Team:Rows()) do
         local icon = "{rt" .. row.icon .. "}"
         if row.role == "TANK" and not row.off then
@@ -202,6 +230,8 @@ function Team:BuildAnnouncement()
             local m = Team:FindMember(row.player)
             local spell = m and Team.CC_SPELL[m.class]
             table.insert(cc, icon .. " " .. ShortName(row.player) .. (spell and (" (" .. L[spell] .. ")") or ""))
+        elseif row.role == "FOLLOW" and row.player and not row.off then
+            table.insert(follow, icon .. " " .. ShortName(row.player))
         end
     end
     -- One line per list, each with its own label (player chat can't carry custom colours).
@@ -209,6 +239,9 @@ function Team:BuildAnnouncement()
     local lines = { L["ANNOUNCE_PREFIX"] .. " " .. L["ANNOUNCE_KILL"] .. " " .. table.concat(kill, " > ") }
     if #cc > 0 then
         table.insert(lines, L["ANNOUNCE_PREFIX"] .. " " .. L["ANNOUNCE_CC"] .. " " .. table.concat(cc, ", "))
+    end
+    if #follow > 0 then
+        table.insert(lines, L["ANNOUNCE_PREFIX"] .. " " .. L["ANNOUNCE_FOLLOW"] .. " " .. table.concat(follow, ", "))
     end
     return lines
 end

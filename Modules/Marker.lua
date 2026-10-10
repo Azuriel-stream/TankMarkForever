@@ -66,17 +66,35 @@ SecureHandlerWrapScript(cycleButton, "OnClick", header, [[
     self:SetAttribute("marker", self:GetAttribute("cyc" .. i))
 ]])
 
--- Clear all marks (and the pack selection).
+-- Follow marks: one raidtarget button per Follow row, on the group member who wears it (the tank).
+-- set-unmarked, never set or toggle: re-applying the icon a unit already wears removes it (kb/gotchas.md#mark-toggle).
+local followButtons = {}
+for k = 1, MAX_MARKS do
+    local b = SecureButton("TMF_Follow" .. k)
+    b:SetAttribute("type", "raidtarget")
+    b:SetAttribute("action", "none")
+    b:SetAttribute("useOnKeyDown", false)
+    followButtons[k] = b
+end
+
+-- Clear all marks (and the pack selection), then put the follow marks back: clear-all can't spare one icon, and
+-- addon code can't tell which mob wears which icon to clear them one by one.
+local clearAllButton = SecureButton("TMF_ClearAll")
+clearAllButton:SetAttribute("type", "raidtarget")
+clearAllButton:SetAttribute("action", "clear-all")
+clearAllButton:SetAttribute("useOnKeyDown", false)
+
+local CLEAR_MACRO = "/click TMF_ClearAll"
 local clearButton = SecureButton("TMF_ClearButton")
-clearButton:SetAttribute("type", "raidtarget")
-clearButton:SetAttribute("action", "clear-all")
+clearButton:SetAttribute("type", "macro")
+clearButton:SetAttribute("macrotext", CLEAR_MACRO)
 clearButton:SetAttribute("useOnKeyDown", true)
 clearButton:HookScript("PreClick", function(_, _, down)
     if down and not InCombatLockdown() then TMF.Plates:ClearSelection(true) end
 end)
 
 Marker.buttons = { pack = packButton, skull = skullButton, cycle = cycleButton, clear = clearButton,
-                   marks = markButtons }
+                   marks = markButtons, follows = followButtons, clearAll = clearAllButton }
 
 -- Debug trace of key presses (insecure reads of the same units).
 local function UnitState(unit)
@@ -89,6 +107,10 @@ end
 packButton:HookScript("PreClick", function(self, _, down)
     if not down then return end
     TMF:Debug("pack key: macro=[%s]", (string.gsub(self:GetAttribute("macrotext") or "", "\n", " ")))
+end)
+clearButton:HookScript("PreClick", function(self, _, down)
+    if not down then return end
+    TMF:Debug("clear key: macro=[%s]", (string.gsub(self:GetAttribute("macrotext") or "", "\n", " ")))
 end)
 skullButton:HookScript("PostClick", function(self, _, down)
     if not down then return end
@@ -104,7 +126,22 @@ end)
 -- Write a plan into the secure attributes. Out of combat only (SetAttribute on secure frames is blocked in combat).
 function Marker:Apply(plan)
     if InCombatLockdown() then return false end
-    local lines = {}
+    -- Follow marks first: the pack key also restores a follow mark someone removed, and the clear key puts them back.
+    local follows, followLines = TMF.isEnabled and TMF.Team:GetFollows() or {}, {}
+    for k, b in ipairs(followButtons) do
+        local f = follows[k]
+        if f then
+            b:SetAttribute("unit", f.unit)
+            b:SetAttribute("marker", f.icon)
+            b:SetAttribute("action", "set-unmarked")
+            table.insert(followLines, "/click TMF_Follow" .. k)
+        else
+            b:SetAttribute("action", "none")
+        end
+    end
+    clearButton:SetAttribute("macrotext", table.concat({ CLEAR_MACRO, unpack(followLines) }, "\n"))
+
+    local lines = { unpack(followLines) }
     for k, b in ipairs(markButtons) do
         local e = plan.entries[k]
         if e and TMF.isEnabled then
