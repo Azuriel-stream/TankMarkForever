@@ -30,5 +30,6 @@ Modules\Overlay.lua
 
 # UI and commands
 UI\Setup.lua
+UI\HUD.lua
 UI\Mobs.lua
 UI\Commands.lua

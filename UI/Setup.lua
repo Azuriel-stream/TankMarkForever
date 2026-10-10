@@ -38,12 +38,6 @@ local function CreateCheckbox(parent, text, tooltip, onClick)
     return cb
 end
 
-local function ClassColored(name, class)
-    local color = class and RAID_CLASS_COLORS and RAID_CLASS_COLORS[class]
-    if color and color.colorStr then return "|c" .. color.colorStr .. name .. "|r" end
-    return name
-end
-
 local function CreateRow(parent, i)
     local row = CreateFrame("Frame", nil, parent)
     row:SetSize(440, ROW_HEIGHT)
@@ -83,8 +77,10 @@ function Setup:Refresh()
     for i, r in ipairs(panel.rows) do
         local data = rows[i]
         r.icon:SetTexCoord(Utils.IconTexCoord(data.icon))
-        r.role:SetText(L["ROLE_" .. data.role])
-        if data.role == "KILL" then
+        r.icon:SetDesaturated(data.off and true or false)
+        r.icon:SetAlpha(data.off and 0.4 or 1)
+        r.role:SetText(L["ROLE_" .. data.role] .. (data.off and (" " .. L["HUD_OFF"]) or ""))
+        if data.role == "TANK" and not data.off then
             killN = killN + 1
             r.order:SetText(tostring(killN))
         else
@@ -93,7 +89,7 @@ function Setup:Refresh()
         local text
         if data.player then
             local m = TMF.Team:FindMember(data.player)
-            text = m and ClassColored(m.short, m.class) or ("|cff888888" .. data.player .. "|r")
+            text = m and Utils.ClassColored(m.short, m.class) or ("|cff888888" .. data.player .. "|r")
             if m and data.role == "CC" and not TMF.Rules.HasCC(m.class) then
                 text = text .. " |cffff6060" .. L["SETUP_NO_CC"] .. "|r"
             end
@@ -101,7 +97,6 @@ function Setup:Refresh()
             text = data.role == "CC" and ("|cffff6060" .. L["SETUP_NEEDS_PLAYER"] .. "|r") or L["SETUP_ANYONE"]
         end
         r.player:SetText(text)
-        r.player:SetEnabled(data.role ~= "OFF")
         r.up:SetEnabled(i > 1)
         r.down:SetEnabled(i < #rows)
     end

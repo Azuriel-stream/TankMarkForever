@@ -43,6 +43,13 @@ function Utils.IconText(icon)
     return "|TInterface\\TargetingFrame\\UI-RaidTargetingIcon_" .. icon .. ":0|t"
 end
 
+-- Group members' names and classes are never secret (kb/restrictions.md §2b).
+function Utils.ClassColored(name, class)
+    local color = class and RAID_CLASS_COLORS and RAID_CLASS_COLORS[class]
+    if color and color.colorStr then return "|c" .. color.colorStr .. name .. "|r" end
+    return name
+end
+
 function Utils.IconName(icon)
     return TMF.L["ICON_" .. tostring(icon)]
 end

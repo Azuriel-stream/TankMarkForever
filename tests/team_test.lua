@@ -43,7 +43,7 @@ return function(_, t)
     t.eq(rows[8].player, nil, "back to anyone")
 
     -- Announcement in party chat.
-    rows[3].role = "OFF"
+    rows[3].off = true
     local lines = Team:BuildAnnouncement()
     t.eq(lines[1], "[TankMark] Kill order: {rt8} Tankard > {rt7} > {rt4} > {rt3} > {rt2} > {rt1}", "kill line")
     t.eq(lines[2], "[TankMark] CC: {rt5} Lumen (Polymorph)", "CC line")
@@ -51,7 +51,7 @@ return function(_, t)
     sim:Slash("/tmf announce")
     t.eq(#sim.chat - before, 2, "two messages")
     t.ok(sim.chat[#sim.chat].channel == "PARTY", "announced to party")
-    rows[4].role = "KILL"
+    rows[4].role = "TANK"
     t.eq(#Team:BuildAnnouncement(), 1, "no CC line without CC rows")
     rows[4].role = "CC"
 

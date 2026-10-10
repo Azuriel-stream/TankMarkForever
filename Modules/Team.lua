@@ -63,11 +63,23 @@ function Team:Rows()
     return TMF.db.setup.rows
 end
 
--- Kill icons in kill order. A row owned by a tank is skipped while that tank is dead, offline or gone.
+-- Saved setups from before the Tank/CC split: "KILL" is now "TANK", "OFF" is a tank row switched off.
+function Team.Migrate(rows)
+    for _, row in ipairs(rows) do
+        if row.role == "OFF" then
+            row.role, row.off = "TANK", true
+        elseif row.role ~= "CC" then
+            row.role = "TANK"
+        end
+    end
+end
+
+-- Tank icons in kill order. Every mob dies; the role says whether a mark is tanked or crowd-controlled first.
+-- Rows switched off (HUD) are left out, and a row owned by a tank is skipped while that tank is dead, offline or gone.
 function Team:GetLadder()
     local ladder = {}
     for _, row in ipairs(Team:Rows()) do
-        if row.role == "KILL" then
+        if row.role == "TANK" and not row.off then
             local owner = row.player and Team:FindMember(row.player)
             if not row.player or (owner and owner.alive) then table.insert(ladder, row.icon) end
         end
@@ -75,11 +87,11 @@ function Team:GetLadder()
     return ladder
 end
 
--- All kill icons (for the next-free-icon key), regardless of owners.
+-- Tank icons that are on (for the next-free-icon key), regardless of owners.
 function Team:KillIcons()
     local icons = {}
     for _, row in ipairs(Team:Rows()) do
-        if row.role == "KILL" then table.insert(icons, row.icon) end
+        if row.role == "TANK" and not row.off then table.insert(icons, row.icon) end
     end
     return icons
 end
@@ -88,7 +100,7 @@ end
 function Team:GetCCSlots()
     local slots = {}
     for _, row in ipairs(Team:Rows()) do
-        if row.role == "CC" and row.player then
+        if row.role == "CC" and row.player and not row.off then
             local m = Team:FindMember(row.player)
             if m and TMF.Rules.HasCC(m.class) then   -- a Shaman's row stays empty (no CC on Forever)
                 table.insert(slots, { mark = row.icon, class = m.class, race = m.race, alive = m.alive })
@@ -101,7 +113,7 @@ end
 -- =========================================================================
 -- Editing (setup window)
 -- =========================================================================
-local ROLE_CYCLE = { KILL = "CC", CC = "OFF", OFF = "KILL" }
+local ROLE_CYCLE = { TANK = "CC", CC = "TANK" }
 
 local function Changed()
     TMF:Fire("SETUP_CHANGED")
@@ -110,8 +122,28 @@ end
 
 function Team:CycleRole(i)
     local row = Team:Rows()[i]
-    row.role = ROLE_CYCLE[row.role] or "KILL"
+    row.role = ROLE_CYCLE[row.role] or "TANK"
     Changed()
+end
+
+-- On/off is separate from the role: the leader switches marks off for the pack in front of them (HUD).
+-- Out of combat the plan and keys follow at once; a change made in combat applies when combat ends.
+function Team:ToggleOff(i)
+    local row = Team:Rows()[i]
+    row.off = not row.off or nil
+    Changed()
+end
+
+function Team:AllOn()
+    for _, row in ipairs(Team:Rows()) do row.off = nil end
+    Changed()
+end
+
+function Team:AnyOff()
+    for _, row in ipairs(Team:Rows()) do
+        if row.off then return true end
+    end
+    return false
 end
 
 -- Cycle the row's player through the group members, then back to none.
@@ -164,9 +196,9 @@ function Team:BuildAnnouncement()
     local kill, cc = {}, {}
     for _, row in ipairs(Team:Rows()) do
         local icon = "{rt" .. row.icon .. "}"
-        if row.role == "KILL" then
+        if row.role == "TANK" and not row.off then
             table.insert(kill, row.player and (icon .. " " .. ShortName(row.player)) or icon)
-        elseif row.role == "CC" and row.player then
+        elseif row.role == "CC" and row.player and not row.off then
             local m = Team:FindMember(row.player)
             local spell = m and Team.CC_SPELL[m.class]
             table.insert(cc, icon .. " " .. ShortName(row.player) .. (spell and (" (" .. L[spell] .. ")") or ""))
@@ -198,6 +230,10 @@ local frame = CreateFrame("Frame", "TMF_TeamFrame")
 frame:SetScript("OnEvent", function()
     Changed()
 end)
+
+function Team:OnInitialize()
+    Team.Migrate(Team:Rows())
+end
 
 function Team:OnEnable()
     frame:RegisterEvent("GROUP_ROSTER_UPDATE")

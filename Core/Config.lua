@@ -7,15 +7,19 @@ TMF.DefaultConfig = {
     nearOnly = true,        -- plan only mobs within ~30 yd (unless a Shift-hover selection is active)
     record = true,         -- inside dungeons/raids, new mob types become database entries automatically
 
-    -- The team setup (one active setup): row order = kill order. role: "KILL" (optionally owned by a tank),
-    -- "CC" (needs a player in the group) or "OFF" (icon not used). player = full name ("First Last") or nil.
+    -- The team setup (one active setup): row order = kill order. role: "TANK" (optionally owned by a tank) or
+    -- "CC" (needs a player in the group); off = true: switched off in the HUD (icon not used).
+    -- player = full name ("First Last") or nil.
     setup = {
         rows = {
-            { icon = 8, role = "KILL" }, { icon = 7, role = "KILL" }, { icon = 6, role = "KILL" },
-            { icon = 5, role = "KILL" }, { icon = 4, role = "KILL" }, { icon = 3, role = "KILL" },
-            { icon = 2, role = "KILL" }, { icon = 1, role = "KILL" },
+            { icon = 8, role = "TANK" }, { icon = 7, role = "TANK" }, { icon = 6, role = "TANK" },
+            { icon = 5, role = "TANK" }, { icon = 4, role = "TANK" }, { icon = 3, role = "TANK" },
+            { icon = 2, role = "TANK" }, { icon = 1, role = "TANK" },
         },
     },
+
+    -- HUD: always shown; clicking its title bar collapses it. point = { x, y } of the top-left corner, nil = default.
+    hud = { collapsed = false },
 
     -- Learned mobs, per zone. Names only work where they're readable (the open world); inside instances the
     -- client hides them, so mobs are learned by signature (level, classification, power type). See DESIGN.md.

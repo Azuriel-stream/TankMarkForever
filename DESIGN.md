@@ -49,7 +49,8 @@ In combat nothing is rewritten (attributes are frozen); the skull and cycle snip
 | `Modules/Planner.lua` | pure `Build` (legacy `DecidePull` port) + shell (rebuild out of combat, reserved icons, report) |
 | `Modules/Marker.lua` | the secure buttons, snippets, attribute writer, pull lock |
 | `Modules/Overlay.lua` | planned-icon preview frames |
-| `UI/Setup.lua` | team setup window (`/tmf`): 8 rows icon/role/player, up/down, Announce |
+| `UI/Setup.lua` | team setup window (`/tmf`): 8 rows icon/role (Tank/CC)/player, up/down, Announce |
+| `UI/HUD.lua` | always-on HUD: marks in use, on/off per mark, collapsible title bar, saved position |
 | `UI/Mobs.lua` | mob database window (`/tmf mobs`): zone arrows, paged rows, type/prio/icon/class/delete, signature labels; signatures named from the offline data ("Ragefire Trogg", "Searing Blade Cultist +1", all names in the tooltip), your note wins |
 | `UI/Commands.lua` | `/tmf` |
 
@@ -83,17 +84,31 @@ In combat nothing is rewritten (attributes are frozen); the skull and cycle snip
   ("boss|RAGE|<model>"), so it doesn.t share the learned entry of trash on the same body.
 
 ## Team setup (milestone 3)
-One active setup (user choice), edited in `/tmf`. Rows in kill order; each row = icon + role + optional player:
-- **Kill**: in the kill ladder in row order; an owning tank (optional) takes the icon out of the ladder while dead/offline.
+One active setup (user choice), edited in `/tmf`. Rows in kill order; each row = icon + role + optional player.
+Every mob is killed, so the role only says what happens to the marked mob first (user, 2026-10-10; legacy model):
+- **Tank**: in the kill ladder in row order; an owning tank (optional) takes the icon out of the ladder while dead/offline.
 - **CC**: needs a player in the group; becomes a CC slot (class/race from the roster) for the planner's CC pass.
-- **Off**: icon not used.
+
+**On/off is separate from the role** and lives in the HUD (`row.off`, saved): a mark that's off isn't planned, isn't
+handed out by the next-free-icon key and isn't announced. Setups saved before the split migrate at load (Kill → Tank,
+Off → Tank switched off).
+
+## HUD (`UI/HUD.lua`)
+Legacy `TankMark_HUD.lua` concept: the leader fits the marks to the pack in front of them. Always shown while
+TankMark is enabled (user choice). Like the quest tracker, clicking the title bar collapses/expands it; dragging the
+title bar moves it. Position (top-left corner), collapsed state and every mark's on/off are saved.
+- Rows: Tank marks (numbered in kill order), then CC marks, each with the owning player (class colour) and the mob
+  the current plan puts the mark on. Which mob actually *wears* a mark can't be shown (secret on Forever).
+- Left-click a row: switch the mark on/off (plan and keys follow at once; in combat it applies when combat ends).
+  Right-click: open the setup. **All on** appears in the title bar while any mark is off; the title counts them.
+- No right-click menu as in legacy: addon dropdown menus crash the beta (kb/gotchas.md#menu-crash).
 
 CC inside instances: the creature type comes from the offline data (`Data/InstanceMobs.lua`), so leftover casters get a
 legal CC slot as in the open world, and slots whose CC the mob is immune to are skipped. Where the data can't tell
 the type, only mobs taught as CC (`/tmf learn cc [class]`) get a CC slot. `/tmf plan` shows each mob's type
 ("Humanoid (data)", "type ?") and immunities.
 **Announce** (button or `/tmf announce`): `[TankMark] Kill order: {rt8} Tank > {rt7} > ...` then `[TankMark] CC: {rt5} Mage (Polymorph)` to
-party/raid; nothing is posted automatically. No HUD (user choice).
+party/raid; nothing is posted automatically. Marks switched off aren't announced.
 
 ## Mob database (milestone 2)
 `/tmf mobs` (or **Mobs** in the setup window). Per zone (arrows switch zones; no dropdowns), 10 rows per page:
@@ -112,5 +127,11 @@ party/raid; nothing is posted automatically. No HUD (user choice).
 1. **Marking loop** (done, in-game confirmed): plates, planner (rules + learning via `/tmf learn`), the four keys, overlay, tests.
 2. **Mob database UI** (done, in-game confirmed): per-zone list, edit type/prio/icon/class, signature labels. Model
    signatures (identity step 1) built, in-game test pending; step 2 (offline NPC names per dungeon) optional.
-3. **Team setup** (done, in-game confirmed): kill order and CC from the setup window, announcement. No HUD.
+3. **Team setup** (done, in-game confirmed): kill order and CC from the setup window, announcement.
+   **Tank/CC roles + HUD on/off** (built 2026-10-10, in-game test pending).
 4. Sync: share the database and profiles over addon messages (work in dungeons, including trash combat).
+5. **Follow mark** (designed, next after the HUD): a third row type puts its mark on a group member (the tank) so the
+   group can follow them. A `TMF_TankMark` raidtarget button with `set-unmarked` (never toggles a worn mark off:
+   re-applying a worn icon by hand removes it, in-game 2026-10-10); the clear key becomes clear-all + re-mark the tank,
+   the pack key re-marks the tank first. Open question: does the client see the clear-all before the re-mark in the
+   same press?
