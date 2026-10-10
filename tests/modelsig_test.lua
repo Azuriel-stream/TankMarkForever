@@ -68,10 +68,10 @@ return function(_, t)
 
     -- Migration of step-1 keys: levels dropped, duplicates merged (first by key kept), levels remembered.
     local saved = { mobs = { ["Test Zone"] = { names = {}, sigs = {
-        ["13|elite|RAGE|126239"] = { type = "KILL", prio = 3 },
-        ["14|elite|RAGE|126239"] = { type = "KILL", prio = 7 },
-        ["14|elite|RAGE|126512"] = { type = "KILL", prio = 1 },
-        ["14|elite|MANA"] = { type = "KILL", prio = 2 },
+        ["13|elite|RAGE|126239"] = { type = "TANK", prio = 3 },
+        ["14|elite|RAGE|126239"] = { type = "TANK", prio = 7 },
+        ["14|elite|RAGE|126512"] = { type = "TANK", prio = 1 },
+        ["14|elite|MANA"] = { type = "TANK", prio = 2 },
     } } } }
     local sim3 = t.fresh(setup(false, saved))
     local sigs = sim3.env.TankMarkForeverDB.mobs["Test Zone"].sigs

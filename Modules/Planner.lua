@@ -77,20 +77,19 @@ function Planner.Build(recs, zoneMobs, ctx)
 
     -- 1. Kill pass down the ladder. Authored CC mobs wait for the CC pass when there are CC slots.
     local li = 1
-    for _, c in ipairs(pack) do
-        if not c.icon and not (c.authoredCC and hasCC) then
-            local icon
-            while li <= #ctx.ladder do
-                local candidate = ctx.ladder[li]
-                li = li + 1
-                if not used[candidate] then icon = candidate break end
-            end
-            if not icon then break end
-            assign(c, icon, "kill")
+    local function NextLadderIcon()
+        while li <= #ctx.ladder do
+            local candidate = ctx.ladder[li]
+            li = li + 1
+            if not used[candidate] then return candidate end
         end
     end
     for _, c in ipairs(pack) do
-        if c.reason == "kill" or c.reason == "fixed" then table.insert(killOrder, c.rec.token) end
+        if not c.icon and not (c.authoredCC and hasCC) then
+            local icon = NextLadderIcon()
+            if not icon then break end
+            assign(c, icon, "kill")
+        end
     end
 
     -- 2. CC pass on the leftovers, kill-last first (legacy ADR 0002: prio decides, CC the tail).
@@ -112,7 +111,21 @@ function Planner.Build(recs, zoneMobs, ctx)
         end
     end
 
-    -- 3. Never drop silently.
+    -- 3. A CC mob that no CC mark fits (slot taken, CC illegal on its type, immune) still dies: next tank mark.
+    for _, c in ipairs(pack) do
+        if not c.icon and c.authoredCC then
+            local icon = NextLadderIcon()
+            if not icon then break end
+            assign(c, icon, "cc-fallback")
+        end
+    end
+    for _, c in ipairs(pack) do
+        if c.reason == "kill" or c.reason == "fixed" or c.reason == "cc-fallback" then
+            table.insert(killOrder, c.rec.token)
+        end
+    end
+
+    -- 4. Never drop silently.
     for _, c in ipairs(pack) do
         if not c.icon then table.insert(overflow, c.rec) end
     end

@@ -23,7 +23,7 @@ TMF.DefaultConfig = {
 
     -- Learned mobs, per zone. Names only work where they're readable (the open world); inside instances the
     -- client hides them, so mobs are learned by signature (level, classification, power type). See DESIGN.md.
-    -- entry = { prio = 1-9, type = "KILL"|"CC"|"IGNORE", icon = 1-8 (optional fixed icon), role = optional }
+    -- entry = { prio = 1-9, type = "TANK"|"CC"|"IGNORE", icon = 1-8 (optional fixed icon), role = optional }
     mobs = {},              -- [zone] = { names = { [name] = entry }, sigs = { [signature] = entry } }
 
     debug = false,          -- /tmf debug on: trace key presses and plate changes (also saved in debugLog)

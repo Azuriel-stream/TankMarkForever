@@ -1,12 +1,12 @@
 local ADDON_NAME, TMF = ...
 
 -- The learned-mob database: per zone, entries by name (open world) or by signature (instances, where names are
--- secret). entry = { type = "KILL"|"CC"|"IGNORE", prio = 1-9, icon = 1-8 or nil, class = CC class or nil,
+-- secret). entry = { type = "TANK"|"CC"|"IGNORE" (which kind of mark it prefers; IGNORE = no mark), prio = 1-9, icon = 1-8 or nil, class = CC class or nil,
 -- note = player-given label for a signature }
 local MobDB = TMF:RegisterModule("MobDB")
 local L, Rules = TMF.L, TMF.Rules
 
-MobDB.TYPES = { "KILL", "CC", "IGNORE" }
+MobDB.TYPES = { "TANK", "CC", "IGNORE" }
 MobDB.CC_CLASSES = { "MAGE", "ROGUE", "WARLOCK", "HUNTER", "PRIEST", "DRUID" }
 
 local function NextIn(list, current)
@@ -152,7 +152,7 @@ function MobDB:Learn(unit, entry)
     local zone = TMF:GetZoneMobs(TMF.Plates.zone)
     MobDB.RememberInstance()
     if not entry then
-        entry = { type = "KILL", prio = Rules.RoleTierPrio(Rules.RoleFromPower(rec.power), rec.tier) }
+        entry = { type = "TANK", prio = Rules.RoleTierPrio(Rules.RoleFromPower(rec.power), rec.tier) }
     end
     local label
     if rec.name then
@@ -165,6 +165,17 @@ function MobDB:Learn(unit, entry)
     end
     Changed()
     return entry, label, rec
+end
+
+-- Entries saved before the Tank/CC naming: type "KILL" is now "TANK" (the kind of mark the mob prefers).
+function MobDB.MigrateTypes(mobs)
+    for _, data in pairs(mobs) do
+        for _, list in pairs({ data.names or {}, data.sigs or {} }) do
+            for _, entry in pairs(list) do
+                if entry.type == "KILL" then entry.type = "TANK" end
+            end
+        end
+    end
 end
 
 -- One-time conversion of "level|tier|power|model" keys (identity step 1) to the level-free "tier|power|model".
@@ -195,7 +206,7 @@ function MobDB:MigrateModelSigs()
 end
 
 -- Recorder (legacy Flight Recorder): inside instances, every new mob type the plates show out of combat becomes a
--- Kill entry with the rules' default priority, so the database fills up as you go and only needs tuning. Keyed like
+-- Tank entry with the rules' default priority, so the database fills up as you go and only needs tuning. Keyed like
 -- Learn (name if readable, else the model signature); waits for the model, so no level-based fallback entries.
 -- Nothing is overwritten. One chat line per new entry. Returns the number recorded.
 function MobDB:RecordVisible()
@@ -209,7 +220,7 @@ function MobDB:RecordVisible()
             local list, key = zone.sigs, rec.sig
             if rec.name then list, key = zone.names, rec.name end
             if not list[key] then
-                local entry = { type = "KILL", prio = Rules.RoleTierPrio(Rules.RoleFromPower(rec.power), rec.tier) }
+                local entry = { type = "TANK", prio = Rules.RoleTierPrio(Rules.RoleFromPower(rec.power), rec.tier) }
                 list[key] = entry
                 if not rec.name then MobDB.NoteLevel(entry, rec.level) end
                 added = added + 1
@@ -225,6 +236,7 @@ function MobDB:RecordVisible()
 end
 
 function MobDB:OnInitialize()
+    MobDB.MigrateTypes(TMF.db.mobs)
     local merged = MobDB:MigrateModelSigs()
     if #merged > 0 then
         C_Timer.After(5, function() TMF:Print(L["MOBS_MERGED"], table.concat(merged, ", ")) end)
@@ -257,7 +269,7 @@ end
 -- Editing one entry (mob database window)
 -- =========================================================================
 function MobDB:CycleType(entry)
-    entry.type = NextIn(MobDB.TYPES, entry.type) or "KILL"
+    entry.type = NextIn(MobDB.TYPES, entry.type) or "TANK"
     if entry.type ~= "IGNORE" and not entry.prio then entry.prio = 5 end
     Changed()
 end

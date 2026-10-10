@@ -1,4 +1,4 @@
--- HUD: per-mark on/off (saved), title bar collapses (saved), drag saves the position; old setups migrate.
+-- HUD: per-mark on/off (saved), title bar collapses (saved), drag saves the position; old setups and mob types migrate.
 local H = require("helpers")
 
 return function(_, t)
@@ -9,6 +9,10 @@ return function(_, t)
             { icon = 8, role = "KILL" }, { icon = 7, role = "OFF" }, { icon = 6, role = "CC", player = "Lumen Brightwater" },
             { icon = 5, role = "KILL" }, { icon = 4, role = "KILL" }, { icon = 3, role = "KILL" },
             { icon = 2, role = "KILL" }, { icon = 1, role = "KILL" },
+        } },
+        mobs = { ["Ragefire Chasm"] = {
+            names = { ["Taragaman"] = { type = "KILL", prio = 1 } },
+            sigs = { ["elite|MANA|126239"] = { type = "CC", prio = 9 }, ["elite|RAGE|126512"] = { type = "IGNORE" } },
         } } }
     end)
     local rows = old.env.TankMarkForeverDB.setup.rows
@@ -17,6 +21,10 @@ return function(_, t)
     t.eq(rows[2].off, true, "... switched off")
     t.eq(rows[3].role, "CC", "CC stays")
     t.eq(table.concat(old.env.TankMarkForever.Team:GetLadder(), ","), "8,5,4,3,2,1", "off and CC rows leave the ladder")
+    local rfc = old.env.TankMarkForeverDB.mobs["Ragefire Chasm"]
+    t.eq(rfc.names["Taragaman"].type, "TANK", "mob type Kill becomes Tank")
+    t.eq(rfc.sigs["elite|MANA|126239"].type, "CC", "CC mob stays CC")
+    t.eq(rfc.sigs["elite|RAGE|126512"].type, "IGNORE", "Ignore stays")
 
     -- Fresh install with a pack in view.
     local sim = t.fresh(function(s)

@@ -120,7 +120,7 @@ return function(_, t)
     -- Encounter bosses (the client calls them "elite") become tier boss from the data: killed before the trash, and
     -- their own signature, so a learned trash entry of the same body doesn't apply (Oggleflint vs Ragefire Trogg).
     local zone = TMF:GetZoneMobs(TMF.Plates.zone)
-    zone.sigs["elite|RAGE|126239"] = { type = "KILL", prio = 4 }   -- the user's trogg entry
+    zone.sigs["elite|RAGE|126239"] = { type = "TANK", prio = 4 }   -- the user's trogg entry
     sim.units.nameplate3 = { guid = "Creature-0-1-0-1-11517-3", friendly = false, level = 16, tier = "elite",
                              power = "RAGE", model = TROGG }   -- Oggleflint
     sim:Fire("NAME_PLATE_UNIT_ADDED", "nameplate3")
@@ -149,17 +149,17 @@ return function(_, t)
     -- Mob database window: signature entries are named from the data (power, boss or not, levels seen).
     local MobDB = TMF.MobDB
     zone.sigs["elite|RAGE|126239"].levels = { 13, 15 }
-    zone.sigs["elite|MANA|126239"] = { type = "KILL", prio = 2, levels = { 14, 14 } }
-    zone.sigs["boss|RAGE|126239"] = { type = "KILL", prio = 1, levels = { 16, 16 } }
-    zone.sigs["elite|MANA|917116"] = { type = "KILL", prio = 2, levels = { 13, 15 } }
-    zone.sigs["elite|RAGE|126512"] = { type = "KILL", prio = 4, note = "worms first" }
-    zone.sigs["14|elite|MANA"] = { type = "KILL", prio = 2 }   -- model-less fallback entry
+    zone.sigs["elite|MANA|126239"] = { type = "TANK", prio = 2, levels = { 14, 14 } }
+    zone.sigs["boss|RAGE|126239"] = { type = "TANK", prio = 1, levels = { 16, 16 } }
+    zone.sigs["elite|MANA|917116"] = { type = "TANK", prio = 2, levels = { 13, 15 } }
+    zone.sigs["elite|RAGE|126512"] = { type = "TANK", prio = 4, note = "worms first" }
+    zone.sigs["14|elite|MANA"] = { type = "TANK", prio = 2 }   -- model-less fallback entry
     MobDB.RememberInstance()
     t.eq(zone.instanceID, RFC, "zone remembers its instance")
     local labels = {}
     for _, row in ipairs(MobDB:Entries(TMF.Plates.zone)) do labels[row.key] = row.label end
     t.eq(labels["elite|RAGE|126239"], "Ragefire Trogg", "trash entry: trogg only (boss excluded)")
-    t.eq(MobDB.DefaultLabel(TMF.Plates.zone, "elite|RAGE|126239", { type = "KILL" }), "Ragefire Trogg",
+    t.eq(MobDB.DefaultLabel(TMF.Plates.zone, "elite|RAGE|126239", { type = "TANK" }), "Ragefire Trogg",
         "no levels recorded: the boss filter alone keeps Oggleflint out")
     t.eq(labels["elite|MANA|126239"], "Ragefire Shaman", "mana body: shaman")
     t.eq(labels["boss|RAGE|126239"], "Oggleflint", "boss entry")

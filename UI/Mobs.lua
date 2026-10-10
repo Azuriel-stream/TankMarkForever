@@ -153,7 +153,7 @@ function MobsUI:Refresh()
             else
                 row.label:SetText(data.label)
             end
-            row.type:SetText(L["TYPE_" .. (e.type or "KILL")])
+            row.type:SetText(L["TYPE_" .. (e.type or "TANK")])
             local killOrCC = e.type ~= "IGNORE"
             row.prio:SetText(killOrCC and tostring(e.prio or 5) or "-")
             row.minus:SetEnabled(killOrCC)
@@ -218,7 +218,7 @@ local function CreatePanel()
 
     local learn = CreateButton(f, L["BTN_LEARN_TARGET"], 120, function()
         local _, label = TMF.MobDB:Learn("target")
-        if label then TMF:Print(L["LEARN_SAVED"], label, L["TYPE_KILL"]) else TMF:Print(L["LEARN_NO_UNIT"]) end
+        if label then TMF:Print(L["LEARN_SAVED"], label, L["TYPE_TANK"]) else TMF:Print(L["LEARN_NO_UNIT"]) end
         panel.zone = TMF.Plates.zone
     end)
     learn:SetPoint("BOTTOMLEFT", 8, 4)

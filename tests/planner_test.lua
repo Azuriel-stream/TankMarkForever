@@ -32,16 +32,16 @@ return function(sim, t)
     melee14.pick, melee15.pick, caster13.pick = nil, nil, nil
 
     -- Learned by signature beats rules; learned by name beats signature.
-    local zone = { names = {}, sigs = { [melee14.sig] = { type = "KILL", prio = 1 } } }
+    local zone = { names = {}, sigs = { [melee14.sig] = { type = "TANK", prio = 1 } } }
     by = icons(P.Build({ melee14, caster13 }, zone, { ladder = LADDER }))
     t.eq(by.nameplate1, 8, "signature prio 1 beats the caster rule")
     local named = H.rec("nameplate4", { name = "Taragaman", level = 14 })
-    zone.names["Taragaman"] = { type = "KILL", prio = 9 }
+    zone.names["Taragaman"] = { type = "TANK", prio = 9 }
     by = icons(P.Build({ named, caster13 }, zone, { ladder = LADDER }))
     t.eq(by.nameplate2, 8, "name entry (prio 9) beats the signature entry (prio 1)")
 
     -- IGNORE, fixed icon, reserved icon.
-    zone = { names = {}, sigs = { [melee14.sig] = { type = "IGNORE" }, [caster13.sig] = { type = "KILL", prio = 5, icon = 5 } } }
+    zone = { names = {}, sigs = { [melee14.sig] = { type = "IGNORE" }, [caster13.sig] = { type = "TANK", prio = 5, icon = 5 } } }
     plan = P.Build({ melee14, caster13, melee15 }, zone, { ladder = LADDER, reserved = { [8] = true } })
     by = icons(plan)
     t.eq(by.nameplate1, nil, "ignored mob gets no icon")
@@ -64,6 +64,22 @@ return function(sim, t)
     plan = P.Build({ a, b, m }, nil, { ladder = { 8 }, ccSlots = slots })
     t.eq(icons(plan).nameplate2, nil, "no CC without a creature type")
     t.eq(#plan.overflow, 2, "both leftovers reported")
+
+    -- A mob taught as CC that no CC mark fits still gets a tank mark (it dies too).
+    local trogg = H.rec("nameplate1", { level = 14 })
+    local shaman = H.rec("nameplate2", { level = 14, power = "MANA", name = "Ragefire Shaman" })
+    zone = { names = { ["Ragefire Shaman"] = { type = "CC", prio = 9 } }, sigs = {} }
+    plan = P.Build({ trogg, shaman }, zone, { ladder = { 8, 7 }, ccSlots = slots, reserved = { [5] = true } })
+    by = icons(plan)
+    t.eq(by.nameplate1, 8, "trogg tanked on skull")
+    t.eq(by.nameplate2, 7, "CC mob whose moon is taken falls back to cross")
+    t.eq(plan.entries[2].reason, "cc-fallback", "reason shown in /tmf plan")
+    t.eq(table.concat(plan.killOrder, ","), "nameplate1,nameplate2", "fallback mob joins the kill order")
+    t.eq(#plan.overflow, 0, "nothing dropped")
+    by = icons(P.Build({ trogg, shaman }, zone, { ladder = { 8, 7 }, ccSlots = slots }))
+    t.eq(by.nameplate2, 5, "with moon free it's sheeped as taught")
+    by = icons(P.Build({ trogg, shaman }, zone, { ladder = { 8 }, ccSlots = slots, reserved = { [5] = true } }))
+    t.eq(by.nameplate2, nil, "no tank mark left either: overflow")
 
     -- Describe without a name.
     t.eq(P.Describe(caster13), "lvl 13 elite caster", "secret-name description")

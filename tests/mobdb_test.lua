@@ -20,7 +20,7 @@ return function(_, t)
     sim.units.target.tier = "normal"
     local e, label = MobDB:Learn("target")
     t.eq(label, "Defias Pillager", "learned by name")
-    t.eq(e.type, "KILL", "kill by default")
+    t.eq(e.type, "TANK", "tank by default")
     t.eq(e.prio, 5, "rules priority for a normal melee")
 
     -- Instance-like: name hidden -> signature.
@@ -52,7 +52,7 @@ return function(_, t)
     t.eq(e2.class, nil, "Druid -> any")
     MobDB:CycleType(e2)
     MobDB:CycleType(e2)
-    t.eq(e2.type, "KILL", "Ignore -> Kill")
+    t.eq(e2.type, "TANK", "Ignore -> Tank")
     for _ = 1, 12 do MobDB:StepPrio(e2, 1) end
     t.eq(e2.prio, 9, "priority capped at 9")
     for _ = 1, 12 do MobDB:StepPrio(e2, -1) end
@@ -76,7 +76,7 @@ return function(_, t)
     t.eq(#MobDB:Entries(TMF.Plates.zone), 2, "deleted")
 
     -- Window: opens on the first /tmf mobs, pages 10 rows at a time.
-    for i = 1, 11 do zone.sigs[string.format("%d|normal|RAGE", 20 + i)] = { type = "KILL", prio = 5 } end
+    for i = 1, 11 do zone.sigs[string.format("%d|normal|RAGE", 20 + i)] = { type = "TANK", prio = 5 } end
     sim:Slash("/tmf mobs")
     local panel = env.TankMarkForeverMobsPanel
     t.ok(panel:IsShown(), "window opens")

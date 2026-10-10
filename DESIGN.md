@@ -18,7 +18,7 @@ workspace repo.
 NAME_PLATE_UNIT_ADDED ─► Plates (record per nameplateN: name?, level, tier, power, sig, dead)
         │ debounced PLATES_CHANGED (out of combat)
         ▼
-Planner.Build (pure)  knowledge: name > signature > rules ─► fixed icons ─► kill ladder ─► CC pass ─► overflow
+Planner.Build (pure)  knowledge: name > signature > rules ─► fixed icons ─► kill ladder ─► CC pass ─► CC fallback ─► overflow
         │ PLAN_CHANGED
         ├─► Marker: writes secure attributes (TMF_Mark1..8 units/icons, pack macro, skull kill list, cycle icons)
         └─► Overlay: planned icon above each plate
@@ -119,7 +119,9 @@ party/raid; nothing is posted automatically. Marks switched off aren't announced
   closed) covers every model of that level/class/power; a model entry wins. Step-1 keys (`level|tier|power|model`) are
   migrated at load; duplicates merge (announced in chat). The label is an edit box, so a signature can be named
   "Earthborer"; `/tmf plan` uses it.
-- Per row: type Kill/CC/Ignore, priority -/+ (1 = first), fixed icon (click cycles auto, skull..star; right-click: auto),
+- Per row: type Tank/CC/Ignore = the kind of mark the mob prefers (Tank: kill ladder by priority, leftovers may still be
+  CC'd; CC: a CC mark, else the next tank mark; Ignore: no mark; saved "KILL" entries migrate to "TANK"), priority -/+ (1 = first),
+  fixed icon (click cycles auto, skull..star; right-click: auto),
   CC class (CC rows), delete. **Learn target** adds the target with the rules' default priority.
 - Legacy TankMark data isn't imported: its database is keyed by name for raids, where names are secret on Forever.
 
@@ -128,7 +130,7 @@ party/raid; nothing is posted automatically. Marks switched off aren't announced
 2. **Mob database UI** (done, in-game confirmed): per-zone list, edit type/prio/icon/class, signature labels. Model
    signatures (identity step 1) built, in-game test pending; step 2 (offline NPC names per dungeon) optional.
 3. **Team setup** (done, in-game confirmed): kill order and CC from the setup window, announcement.
-   **Tank/CC roles + HUD on/off** (built 2026-10-10, in-game test pending).
+   **Tank/CC roles + HUD on/off**, mob types Tank/CC/Ignore + CC fallback (in-game confirmed 2026-10-10).
 4. Sync: share the database and profiles over addon messages (work in dungeons, including trash combat).
 5. **Follow mark** (designed, next after the HUD): a third row type puts its mark on a group member (the tank) so the
    group can follow them. A `TMF_TankMark` raidtarget button with `set-unmarked` (never toggles a worn mark off:

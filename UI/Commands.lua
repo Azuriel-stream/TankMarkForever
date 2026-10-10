@@ -18,7 +18,7 @@ local function Learn(arg1, arg2)
     elseif arg1 == "cc" then
         entry = { type = "CC", prio = 9, icon = icon, class = class }
     elseif tonumber(arg1) and tonumber(arg1) >= 1 and tonumber(arg1) <= 9 then
-        entry = { type = "KILL", prio = tonumber(arg1), icon = icon }
+        entry = { type = "TANK", prio = tonumber(arg1), icon = icon }
     else
         TMF:Print(L["LEARN_USAGE"])
         return
